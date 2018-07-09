@@ -12,6 +12,11 @@ We are building entirely open solution to this competition. Specifically:
 1. Deliver open source solution with no strings attached. Code is available on our [GitHub repository :computer:](https://github.com/neptune-ml/open-solution-googleai-object-detection). This solution should establish solid benchmark, as well as provide good base for your custom ideas and experiments. We care about clean code :smiley:
 1. We are opening our experiments as well: everybody can have **live preview** on our experiments, parameters, code, etc. Check: [Google-AI-Object-Detection-Challenge :chart_with_upwards_trend:](https://app.neptune.ml/neptune-ml/Google-AI-Object-Detection-Challenge).
 
+## Dataset for this competition
+This competition is special, because it used [Open Images Dataset V4](https://storage.googleapis.com/openimages/web/index.html), which is quite large :point_right: `>1.8M` images and `>0.5TB` :astonished: To make it more approachable, we are hosting entire dataset in the neptune's public directory :sunglasses:.
+
+Thanks to this use can use this dataset in [neptune.ml](https://neptune.ml) immediately :+1:.
+
 ## Learn more about our solutions
 [Kaggle discussion](https://www.kaggle.com/c/google-ai-open-images-object-detection-track/discussion) is our primary way of communication, however, we are also documenting our work on the [Wiki pages :blue_book:](https://github.com/neptune-ml/open-solution-googleai-object-detection/wiki). Click on the dolphin to get started [:dolphin:](https://github.com/neptune-ml/open-solution-googleai-object-detection/wiki).
 
