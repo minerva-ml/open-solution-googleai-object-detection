@@ -15,7 +15,7 @@ We are building entirely open solution to this competition. Specifically:
 1. We are opening our experiments as well: everybody can have **live preview** on our experiments, parameters, code, etc. Check: [Google-AI-Object-Detection-Challenge :chart_with_upwards_trend:](https://app.neptune.ml/neptune-ml/Google-AI-Object-Detection-Challenge).
 
 ## Dataset for this competition
-This competition is special, because it used [Open Images Dataset V4](https://storage.googleapis.com/openimages/web/index.html), which is quite large :point_right: `>1.8M` images and `>0.5TB` :astonished: To make it more approachable, we are hosting entire dataset in the neptune's public directory :sunglasses:.
+This competition is special, because it used [Open Images Dataset V4](https://storage.googleapis.com/openimages/web/index.html), which is quite large: `>1.8M` images and `>0.5TB` :astonished: To make it more approachable, we are hosting entire dataset in the neptune's public directory :sunglasses:.
 
 Thanks to this use can use this dataset in [neptune.ml](https://neptune.ml) immediately :+1:.
 
