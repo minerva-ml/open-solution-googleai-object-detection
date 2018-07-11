@@ -6,10 +6,11 @@ import ntpath
 import random
 import sys
 import time
-from itertools import product, chain
+from itertools import chain
 from collections import defaultdict, Iterable
 
 import glob
+from deepsense import neptune
 import numpy as np
 import pandas as pd
 import torch
@@ -22,7 +23,40 @@ from pycocotools.coco import COCO
 from tqdm import tqdm
 from scipy import ndimage as ndi
 from .cocoeval import COCOeval
-from .steps.base import BaseTransformer
+from .steppy.base import BaseTransformer
+
+
+# Alex Martelli's 'Borg'
+# http://python-3-patterns-idioms-test.readthedocs.io/en/latest/Singleton.html
+class _Borg:
+    _shared_state = {}
+
+    def __init__(self):
+        self.__dict__ = self._shared_state
+
+
+class NeptuneContext(_Borg):
+    def __init__(self, fallback_file='configs/neptune_local.yaml'):
+        _Borg.__init__(self)
+
+        self.ctx = neptune.Context()
+        self.fallback_file = fallback_file
+        self.params = self._read_params()
+        self.numeric_channel = neptune.ChannelType.NUMERIC
+        self.image_channel = neptune.ChannelType.IMAGE
+        self.text_channel = neptune.ChannelType.TEXT
+
+    def _read_params(self):
+        if self.ctx.params.__class__.__name__ == 'OfflineContextParams':
+            params = self._read_yaml().parameters
+        else:
+            params = self.ctx.params
+        return params
+
+    def _read_yaml(self):
+        with open(self.fallback_file) as f:
+            config = yaml.load(f)
+        return AttrDict(config)
 
 
 def read_yaml(filepath):
@@ -53,19 +87,15 @@ def get_logger():
     return logging.getLogger('mapping-challenge')
 
 
-def decompose(labeled):
-    nr_true = labeled.max()
-    masks = []
-    for i in range(1, nr_true + 1):
-        msk = labeled.copy()
-        msk[msk != i] = 0.
-        msk[msk == i] = 255.
-        masks.append(msk)
+def get_img_ids_from_folder(dirpath, n_ids=None):
+    ids = []
+    for i, filepath in enumerate(glob.glob('{}/*'.format(dirpath))):
+        idx = os.path.basename(filepath).split('.')[0]
+        ids.append(idx)
 
-    if not masks:
-        return [labeled]
-    else:
-        return masks
+        if n_ids == i:
+            break
+    return ids
 
 
 def create_annotations(meta, predictions, logger, category_ids, category_layers, save=False, experiment_dir='./'):
@@ -299,38 +329,28 @@ def generate_data_frame_chunks(meta, chunk_size):
         yield meta_chunk
 
 
-def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, small_annotations_size):
-    coco = COCO(gt_filepath)
-    coco_results = coco.loadRes(prediction_filepath)
-    cocoEval = COCOeval(coco, coco_results)
-    cocoEval.params.imgIds = image_ids
-    cocoEval.params.catIds = category_ids
-    cocoEval.params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, small_annotations_size ** 2],
-                               [small_annotations_size ** 2, 1e5 ** 2]]
-    cocoEval.params.areaRngLbl = ['all', 'small', 'large']
-    cocoEval.evaluate()
-    cocoEval.accumulate()
-    cocoEval.summarize()
+def map_evaluation():
+    return NotImplementedError
 
-    return cocoEval.stats[0], cocoEval.stats[3]
+
+# def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, small_annotations_size):
+#     coco = COCO(gt_filepath)
+#     coco_results = coco.loadRes(prediction_filepath)
+#     cocoEval = COCOeval(coco, coco_results)
+#     cocoEval.params.imgIds = image_ids
+#     cocoEval.params.catIds = category_ids
+#     cocoEval.params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, small_annotations_size ** 2],
+#                                [small_annotations_size ** 2, 1e5 ** 2]]
+#     cocoEval.params.areaRngLbl = ['all', 'small', 'large']
+#     cocoEval.evaluate()
+#     cocoEval.accumulate()
+#     cocoEval.summarize()
+#
+#     return cocoEval.stats[0], cocoEval.stats[3]
 
 
 def denormalize_img(image, mean, std):
     return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)
-
-
-def label(mask):
-    labeled, nr_true = ndi.label(mask)
-    return labeled
-
-
-def add_dropped_objects(original, processed):
-    reconstructed = processed.copy()
-    labeled = label(original)
-    for i in range(1, labeled.max() + 1):
-        if not np.any(np.where((labeled == i) & processed)):
-            reconstructed += (labeled == i)
-    return reconstructed.astype('uint8')
 
 
 def make_apply_transformer(func, output_name='output', apply_on=None):
@@ -405,16 +425,3 @@ def make_apply_transformer_stream(func, output_name='output', apply_on=None):
                     raise Exception('All inputs must be iterable')
 
     return StaticApplyTransformerStream()
-
-
-def get_seed():
-    seed = int(time.time()) + int(os.getpid())
-    return seed
-
-
-def reseed(augmenter_sequence, deterministic=True):
-    for aug in augmenter_sequence:
-        aug.random_state = ia.new_random_state(get_seed())
-        if deterministic:
-            aug.deterministic = True
-    return augmenter_sequence

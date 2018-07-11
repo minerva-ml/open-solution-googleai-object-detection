@@ -1,15 +1,15 @@
 from functools import partial
 
 from . import loaders
-from .steps.base import Step, Dummy
-from .steps.preprocessing.misc import XYSplit
+from .steppy.base import Step, Dummy
+from .steppy.preprocessing.misc import XYSplit
 from .utils import squeeze_inputs, make_apply_transformer, make_apply_transformer_stream
 from .models import PyTorchUNet, PyTorchUNetWeighted, PyTorchUNetStream, PyTorchUNetWeightedStream, ScoringLightGBM, \
     ScoringRandomForest
 from . import postprocessing as post
 
 
-def retina(config, train_mode):
+def retinanet(config, train_mode):
     save_output = False
     load_saved_output = False
 
@@ -153,7 +153,7 @@ def mask_postprocessing(model, config, make_transformer, **kwargs):
     return score_builder
 
 
-PIPELINES = {'retina': {'train': partial(retina, train_mode=True),
-                        'inference': partial(retina, train_mode=False),
-                        },
+PIPELINES = {'retinanet': {'train': partial(retinanet, train_mode=True),
+                           'inference': partial(retinanet, train_mode=False),
+                           },
              }

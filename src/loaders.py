@@ -1,4 +1,4 @@
-from .steps.pytorch.loaders import ImageSegmentationBaseDataset
+from .steppy.pytorch.loaders import ImageSegmentationBaseDataset
 
 
 class DetectionLoader(ImageSegmentationBaseDataset):

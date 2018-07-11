@@ -11,7 +11,7 @@ from toolkit.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
 from steppy.base import IdentityOperation
 
 from . import postprocessing as post
-from .steps.base import Step
+from .steppy.base import Step
 from .utils import get_logger, softmax, coco_evaluation, create_annotations, make_apply_transformer
 from .pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING, CATEGORY_LAYERS
 

@@ -12,6 +12,7 @@ SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
 Y_COLUMNS = ['file_path_mask_eroded_0_dilated_0']
 Y_COLUMNS_SCORING = ['ImageId']
+ID_COLUMN = ['ImageID']
 SEED = 1234
 CATEGORY_IDS = [None, 100]
 CATEGORY_LAYERS = [1, 19]
