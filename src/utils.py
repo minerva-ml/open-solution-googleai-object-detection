@@ -329,7 +329,7 @@ def generate_data_frame_chunks(meta, chunk_size):
         yield meta_chunk
 
 
-def map_evaluation():
+def map_evaluation(ground_truth, prediction):
     return NotImplementedError
 
 

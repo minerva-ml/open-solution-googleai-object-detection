@@ -6,7 +6,7 @@ from deepsense import neptune
 import json
 from pycocotools.coco import COCO
 
-from .pipeline_config import SOLUTION_CONFIG, Y_COLUMNS_SCORING, CATEGORY_IDS, SEED, CATEGORY_LAYERS, ID_COLUMN
+from .pipeline_config import SOLUTION_CONFIG, CATEGORY_IDS, SEED, CATEGORY_LAYERS, ID_COLUMN
 from .pipelines import PIPELINES
 from .utils import init_logger, read_params, set_seed, get_img_ids_from_folder, map_evaluation, create_annotations, \
     generate_data_frame_chunks, NeptuneContext
@@ -75,6 +75,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
     logger.info('evaluating')
 
     nrows = 100 if dev_mode else None
+    annotations = pd.read_csv(params.annotations_filepath, nrows=nrows)
 
     if params.default_valid_ids:
         valid_ids_data = pd.read_csv(params.valid_ids_filepath, nrows=nrows)
@@ -87,7 +88,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
                                      pipeline, logger, CATEGORY_IDS, chunk_size)
 
     logger.info('Calculating mean average precision')
-    mean_average_precision = map_evaluation()
+    mean_average_precision = map_evaluation(annotations, prediction)
     logger.info('MAP on validation is {}'.format(mean_average_precision))
     ctx.channel_send('MAP', 0, mean_average_precision)
 

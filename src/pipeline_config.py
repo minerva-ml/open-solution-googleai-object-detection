@@ -58,7 +58,7 @@ SOLUTION_CONFIG = AttrDict({
                                  },
                },
 
-    'retina': {
+    'retinanet': {
         'architecture_config': {'model_params': {'n_filters': params.n_filters,
                                                  'conv_kernel': params.conv_kernel,
                                                  'pool_kernel': params.pool_kernel,
