@@ -6,26 +6,20 @@ from deepsense import neptune
 import json
 from pycocotools.coco import COCO
 
-from .pipeline_config import SOLUTION_CONFIG, CATEGORY_IDS, SEED, CATEGORY_LAYERS, ID_COLUMN
+from .pipeline_config import SOLUTION_CONFIG, SEED, ID_COLUMN
 from .pipelines import PIPELINES
 from .utils import init_logger, read_params, set_seed, get_img_ids_from_folder, map_evaluation, create_annotations, \
     generate_data_frame_chunks, NeptuneContext
 
-neptune_ctx = NeptuneContext()
-params = neptune_ctx.params
-ctx = neptune_ctx.ctx
-
-set_seed(SEED)
-logger = init_logger()
-
 
 class PipelineManager():
     def __init__(self):
+        neptune_ctx = NeptuneContext()
+        self.params = neptune_ctx.params
+        self.ctx = neptune_ctx.ctx
         self.logger = init_logger()
         self.seed = SEED
         set_seed(self.seed)
-        self.ctx = neptune.Context()
-        self.params = read_params(self.ctx, fallback_file='neptune.yaml')
 
     def train(self, pipeline_name, dev_mode):
         train(pipeline_name, dev_mode, self.logger, self.params, self.seed)
@@ -46,23 +40,24 @@ def train(pipeline_name, dev_mode, logger, params, seed):
         shutil.rmtree(params.experiment_dir)
 
     nrows = 100 if dev_mode else None
+    nrows_valid = 20 if dev_mode else None
     annotations = pd.read_csv(params.annotations_filepath, nrows=nrows)
     annotations_human_labels = pd.read_csv(params.annotations_human_verification_filepath, nrows=nrows)
 
     if params.default_valid_ids:
-        valid_ids_data = pd.read_csv(params.valid_ids_filepath, nrows=nrows)
-        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
+        valid_ids_data = pd.read_csv(params.valid_ids_filepath, nrows=nrows_valid)
+        valid_img_ids = valid_ids_data[ID_COLUMN].values.tolist()
         train_img_ids = list(set(annotations[ID_COLUMN].unique()) - set(valid_img_ids))
     else:
         raise NotImplementedError
 
     data = {'input': {'img_ids': train_img_ids
                       },
+            'validation_input': {'valid_img_ids': valid_img_ids,
+                               },
             'metadata': {'annotations': annotations,
                          'annotations_human_labels': annotations_human_labels
-                         },
-            'callback_input': {'valid_img_ids': valid_img_ids
-                               }
+                         }
             }
 
     pipeline = PIPELINES[pipeline_name]['train'](SOLUTION_CONFIG)

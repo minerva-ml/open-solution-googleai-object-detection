@@ -54,7 +54,9 @@ parameters:
   pool_kernel: 3
   pool_stride: 2
   repeat_blocks: 4
-  encoder: ResNet101
+  encoder_depth: 50
+  num_classes: 500
+  pretrained: 1
 
 # U-Net loss weights (multi-output)
   bce_mask: 1.0

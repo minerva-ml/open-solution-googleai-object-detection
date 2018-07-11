@@ -45,8 +45,8 @@ class ImageDetectionDataset(Dataset):
         Xi = self.load_from_disk(index)
 
         if self.y is not None:
-            Bi, Li = self.load_target(index, Xi.size)
-            return Xi, Bi, Li
+            yi = self.load_target(index, Xi.size)
+            return Xi, yi
         else:
             return Xi
 
@@ -106,33 +106,33 @@ class ImageDetectionDataset(Dataset):
 
 
 class ImageDetectionLoader(BaseTransformer):
-    def __init__(self, labels, loader_params, dataset_params):
+    def __init__(self, train_mode, loader_params, dataset_params):
         super().__init__()
-        self.labels = labels
+        self.train_mode = train_mode
         self.loader_params = AttrDict(loader_params)
         self.dataset_params = AttrDict(dataset_params)
 
         self.encoder = DataEncoder()
         self.dataset = ImageDetectionDataset
 
-    def transform(self, X, y, X_valid=None, y_valid=None, train_mode=True):
-        if train_mode and y is not None:
-            flow, steps = self.get_datagen(X, y, True, self.loader_params.training)
+    def transform(self, X, y, labels=None, X_valid=None, y_valid=None):
+        if self.train_mode and y is not None:
+            flow, steps = self.get_datagen(X, y, labels, True, self.loader_params.training)
         else:
-            flow, steps = self.get_datagen(X, None, False, self.loader_params.inference)
+            flow, steps = self.get_datagen(X, None, labels, False, self.loader_params.inference)
 
         if X_valid is not None and y_valid is not None:
-            valid_flow, valid_steps = self.get_datagen(X_valid, y_valid, False, self.loader_params.inference)
+            valid_flow, valid_steps = self.get_datagen(X_valid, y_valid, labels, False, self.loader_params.inference)
         else:
             valid_flow = None
             valid_steps = None
         return {'datagen': (flow, steps),
                 'validation_datagen': (valid_flow, valid_steps)}
 
-    def get_datagen(self, X, y, train_mode, loader_params):
+    def get_datagen(self, X, y, labels, train_mode, loader_params):
         if train_mode:
             dataset = self.dataset(X, y,
-                                   labels=self.labels,
+                                   labels=labels,
                                    images_dir=self.dataset_params.images_dir,
                                    encoder=self.encoder,
                                    train_mode=True)
@@ -142,13 +142,13 @@ class ImageDetectionLoader(BaseTransformer):
                                  collate_fn=dataset.collate_fn)
         else:
             dataset = self.dataset(X, y,
-                                   labels=self.labels,
+                                   labels=labels,
                                    images_dir=self.dataset_params.images_dir,
                                    encoder=self.encoder,
                                    train_mode=False)
 
-        datagen = DataLoader(dataset, **loader_params,
-                             collate_fn=dataset.collate_fn)
+            datagen = DataLoader(dataset, **loader_params,
+                                 collate_fn=dataset.collate_fn)
         steps = len(datagen)
         return datagen, steps
 
