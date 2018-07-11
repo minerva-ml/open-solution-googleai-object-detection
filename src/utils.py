@@ -425,3 +425,4 @@ def make_apply_transformer_stream(func, output_name='output', apply_on=None):
                     raise Exception('All inputs must be iterable')
 
     return StaticApplyTransformerStream()
+

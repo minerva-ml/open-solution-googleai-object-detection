@@ -39,6 +39,7 @@ parameters:
   default_valid_ids: 1
   loader_mode: resize
   stream_mode: 0
+  training_subset_size: 100
 
 # General parameters
   image_h: 256
