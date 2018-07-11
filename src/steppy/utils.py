@@ -36,7 +36,7 @@ def create_filepath(filepath):
 
 
 def initialize_logger():
-    logger = logging.getLogger('steps')
+    logger = logging.getLogger('steppy')
     logger.setLevel(logging.INFO)
     message_format = logging.Formatter(fmt='%(asctime)s %(name)s >>> %(message)s',
                                        datefmt='%Y-%m-%d %H-%M-%S')
@@ -54,4 +54,4 @@ def initialize_logger():
 
 
 def get_logger():
-    return logging.getLogger('steps')
+    return logging.getLogger('steppy')

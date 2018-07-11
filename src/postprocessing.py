@@ -10,7 +10,7 @@ from pycocotools import mask as cocomask
 import pandas as pd
 import cv2
 
-from .steps.base import BaseTransformer
+from .steppy.base import BaseTransformer
 from .utils import denormalize_img, add_dropped_objects, label, rle_from_binary
 from .pipeline_config import MEAN, STD, CATEGORY_LAYERS, CATEGORY_IDS
 

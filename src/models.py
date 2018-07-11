@@ -11,12 +11,12 @@ from sklearn.ensemble import RandomForestRegressor
 from toolkit import Model
 
 from .callbacks import NeptuneMonitorSegmentation, ValidationMonitorSegmentation
-from .steps.pytorch.architectures.unet import UNet
-from .steps.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
+from .steppy.pytorch.architectures.unet import UNet
+from .steppy.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping
-from .steps.pytorch.models import Model
-from .steps.pytorch.validation import multiclass_segmentation_loss, DiceLoss
-from .steps.sklearn.models import LightGBM, make_transformer, SklearnRegressor
+from .steppy.pytorch.models import Model
+from .steppy.pytorch.validation import multiclass_segmentation_loss, DiceLoss
+from .steppy.sklearn.models import LightGBM, make_transformer, SklearnRegressor
 from .utils import softmax
 from .unet_models import AlbuNet, UNet11, UNetVGG16, UNetResNet
 
