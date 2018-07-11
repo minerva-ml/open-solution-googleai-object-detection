@@ -43,12 +43,14 @@ SOLUTION_CONFIG = AttrDict({
                                   'w_pad': params.w_pad,
                                   'h': params.image_h,
                                   'w': params.image_w,
-                                  'pad_method': params.pad_method
+                                  'pad_method': params.pad_method,
+                                  'images_dir': params.train_imgs_dir
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
                                               'shuffle': True,
                                               'num_workers': params.num_workers,
-                                              'pin_memory': params.pin_memory
+                                              'pin_memory': params.pin_memory,
+                                              'subset_size': params.training_subset_size
                                               },
                                  'inference': {'batch_size': params.batch_size_inference,
                                                'shuffle': False,
