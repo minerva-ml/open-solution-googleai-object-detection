@@ -23,13 +23,13 @@ class RandomSubsetSampler(Sampler):
 
 
 class ImageDetectionDataset(Dataset):
-    def __init__(self, ids, annotations, annotations_human_labels, images_dir, output_encoder, train_mode):
+    def __init__(self, ids, annotations, annotations_human_labels, images_dir, target_encoder, train_mode):
         super().__init__()
         self.ids = ids
         self.annotations = annotations
         self.annotations_human_labels = annotations_human_labels
         self.images_dir = images_dir
-        self.output_encoder = output_encoder
+        self.target_encoder = target_encoder
         self.train_mode = train_mode
 
     def __len__(self):
@@ -92,7 +92,7 @@ class ImageDetectionDataset(Dataset):
         inputs = torch.stack(imgs)
         bbox_targets, clf_targets = [], []
         for i in range(len(imgs)):
-            bbox_target, clf_target = self.output_encoder.encode(boxes[i], labels[i], input_size=inputs.size()[2:])
+            bbox_target, clf_target = self.target_encoder.encode(boxes[i], labels[i], input_size=inputs.size()[2:])
             bbox_targets.append(bbox_target)
             clf_targets.append(clf_target)
         return inputs, torch.stack(bbox_targets), torch.stack(clf_targets)
@@ -105,7 +105,7 @@ class ImageDetectionLoader(BaseTransformer):
         self.loader_params = AttrDict(loader_params)
         self.dataset_params = AttrDict(dataset_params)
 
-        self.output_encoder = DataEncoder()
+        self.target_encoder = DataEncoder()
         self.dataset = ImageDetectionDataset
 
     def transform(self, ids, annotations=None, annotations_human_labels=None, valid_ids=None):
@@ -130,7 +130,7 @@ class ImageDetectionLoader(BaseTransformer):
                                    annotations=annotations,
                                    annotations_human_labels=annotations_human_labels,
                                    images_dir=self.dataset_params.images_dir,
-                                   output_encoder=self.output_encoder,
+                                   target_encoder=self.target_encoder,
                                    train_mode=True)
             datagen = DataLoader(dataset, **loader_params,
                                  sampler=RandomSubsetSampler(data_size=len(dataset),
@@ -141,7 +141,7 @@ class ImageDetectionLoader(BaseTransformer):
                                    annotations=annotations,
                                    annotations_human_labels=annotations_human_labels,
                                    images_dir=self.dataset_params.images_dir,
-                                   output_encoder=self.output_encoder,
+                                   target_encoder=self.target_encoder,
                                    train_mode=False)
 
             datagen = DataLoader(dataset, **loader_params,
