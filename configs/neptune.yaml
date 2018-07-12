@@ -58,10 +58,6 @@ parameters:
   num_classes: 500
   pretrained: 1
 
-# U-Net loss weights (multi-output)
-  bce_mask: 1.0
-  dice_mask: 0.2
-
 # Training schedule
   epochs_nr: 100
   batch_size_train: 20

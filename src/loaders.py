@@ -69,8 +69,7 @@ class ImageDetectionDataset(Dataset):
         return self.get_boxes_and_labels(boxes_rows, img_shape)
 
     def get_boxes_and_labels(self, boxes_rows, img_shape):
-        boxes = []
-        labels = []
+        boxes, labels = [], []
         h, w = img_shape
         for box_row in boxes_rows:
             x_min = box_row['XMin'].values[0] * h
@@ -86,23 +85,22 @@ class ImageDetectionDataset(Dataset):
         """Encode targets.
 
         Args:
-          batch: (list) of images, cls_targets, loc_targets.
+          batch: (list) of images, bbox_targets, clf_targets.
 
         Returns:
-          images, stacked cls_targets, stacked loc_targets.
+          images, stacked bbox_targets, stacked clf_targets.
         """
         imgs = [x[0] for x in batch]
         boxes = [x[1] for x in batch]
         labels = [x[2] for x in batch]
 
         inputs = torch.stack(imgs)
-        loc_targets = []
-        cls_targets = []
+        bbox_targets, clf_targets = [], []
         for i in range(len(imgs)):
-            loc_target, cls_target = self.encoder.encode(boxes[i], labels[i], input_size=inputs.size()[2:])
-            loc_targets.append(loc_target)
-            cls_targets.append(cls_target)
-        return inputs, torch.stack(loc_targets), torch.stack(cls_targets)
+            bbox_target, clf_target = self.encoder.encode(boxes[i], labels[i], input_size=inputs.size()[2:])
+            bbox_targets.append(bbox_target)
+            clf_targets.append(clf_target)
+        return inputs, torch.stack(bbox_targets), torch.stack(clf_targets)
 
 
 class ImageDetectionLoader(BaseTransformer):
