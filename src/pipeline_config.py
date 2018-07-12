@@ -45,7 +45,7 @@ SOLUTION_CONFIG = AttrDict({
                                   'h': params.image_h,
                                   'w': params.image_w,
                                   'pad_method': params.pad_method,
-                                  'images_dir': params.train_imgs_dir
+                                  'images_dir': None
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
                                               'shuffle': True,

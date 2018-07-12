@@ -51,6 +51,8 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     else:
         raise NotImplementedError
 
+    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = params.train_imgs_dir
+
     data = {'input': {'img_ids': train_img_ids
                       },
             'validation_input': {'valid_img_ids': valid_img_ids,
@@ -78,9 +80,11 @@ def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
     else:
         raise NotImplementedError
 
+    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = params.train_imgs_dir
+
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(valid_img_ids,
-                                     pipeline, logger, CATEGORY_IDS, chunk_size)
+                                     pipeline, logger, chunk_size)
 
     logger.info('Calculating mean average precision')
     mean_average_precision = map_evaluation(annotations, prediction)
@@ -94,9 +98,11 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, par
     n_ids = 100 if dev_mode else None
     test_img_ids = get_img_ids_from_folder(params.test_imgs_dir, n_ids=n_ids)
 
+    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = params.test_imgs_dir
+
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(test_img_ids,
-                                     pipeline, logger, CATEGORY_IDS, chunk_size)
+                                     pipeline, logger, chunk_size)
 
     submission = prediction
     submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
@@ -116,14 +122,14 @@ def make_submission(submission_filepath):
     logger.info('Kaggle submit completed')
 
 
-def generate_prediction(img_ids, pipeline, logger, category_ids, chunk_size):
+def generate_prediction(img_ids, pipeline, logger, chunk_size):
     if chunk_size is not None:
-        return _generate_prediction_in_chunks(img_ids, pipeline, logger, category_ids, chunk_size)
+        return _generate_prediction_in_chunks(img_ids, pipeline, logger, chunk_size)
     else:
-        return _generate_prediction(img_ids, pipeline, logger, category_ids)
+        return _generate_prediction(img_ids, pipeline, logger)
 
 
-def _generate_prediction(img_ids, pipeline, logger, category_ids):
+def _generate_prediction(img_ids, pipeline, logger):
     data = {'input': {'img_ids': img_ids
                       },
             }
@@ -133,11 +139,11 @@ def _generate_prediction(img_ids, pipeline, logger, category_ids):
     pipeline.clean_cache()
     y_pred = output['y_pred']
 
-    prediction = create_annotations(img_ids, y_pred, logger, category_ids, CATEGORY_LAYERS)
+    prediction = create_annotations(img_ids, y_pred, logger)
     return prediction
 
 
-def _generate_prediction_in_chunks(img_ids, pipeline, logger, category_ids, chunk_size):
+def _generate_prediction_in_chunks(img_ids, pipeline, logger, chunk_size):
     prediction = []
     for img_ids_chunk in generate_data_frame_chunks(img_ids, chunk_size):
         data = {'input': {'img_ids': img_ids_chunk
@@ -150,7 +156,7 @@ def _generate_prediction_in_chunks(img_ids, pipeline, logger, category_ids, chun
         pipeline.clean_cache()
         y_pred = output['y_pred']
 
-        prediction_chunk = create_annotations(img_ids_chunk, y_pred, logger, category_ids, CATEGORY_LAYERS)
+        prediction_chunk = create_annotations(img_ids_chunk, y_pred, logger)
         prediction.extend(prediction_chunk)
 
     return prediction
