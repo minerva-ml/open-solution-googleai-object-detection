@@ -353,6 +353,11 @@ def denormalize_img(image, mean, std):
     return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)
 
 
+def get_image_size(image_id, images_dir):
+    img = Image.open(os.path.join(images_dir, "{}.png".format(image_id)))
+    return img.size
+
+
 def make_apply_transformer(func, output_name='output', apply_on=None):
     class StaticApplyTransformer(BaseTransformer):
         def transform(self, *args, **kwargs):
@@ -425,19 +430,6 @@ def make_apply_transformer_stream(func, output_name='output', apply_on=None):
                     raise Exception('All inputs must be iterable')
 
     return StaticApplyTransformerStream()
-
-
-def get_seed():
-    seed = int(time.time()) + int(os.getpid())
-    return seed
-
-
-def reseed(augmenter_sequence, deterministic=True):
-    for aug in augmenter_sequence:
-        aug.random_state = ia.new_random_state(get_seed())
-        if deterministic:
-            aug.deterministic = True
-    return augmenter_sequence
 
 
 def meshgrid(x, y, row_major=True):

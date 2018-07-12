@@ -5,6 +5,9 @@ from steppy.base import IdentityOperation
 from .loaders import ImageDetectionLoader
 from .steppy.base import Step
 from .models import Retina
+from .retinanet import DataDecoder
+from .postprocessing import SubmissionProducer, resize_bboxes
+from .utils import make_apply_transformer, get_image_size
 
 
 def retinanet(config, train_mode):
@@ -60,11 +63,31 @@ def preprocessing_generator(config, is_train):
 
 
 def postprocessing(model, config, **kwargs):
-    postprocessor = Step(name='postprocessor',
-                         transformer=IdentityOperation(),
-                         input_steps=[model],
-                         cache_dirpath=config.env.cache_dirpath, **kwargs)
-    return postprocessor
+    decoder = Step(name='decoder',
+                   transformer=DataDecoder(),
+                   input_steps=[model, ],
+                   cache_dirpath=config.env.cache_dirpath, **kwargs
+                   )
+
+    resizer = Step(name='resizer',
+                   transformer=make_apply_transformer(func=resize_bboxes,
+                                                      output_name='resized_results',
+                                                      ),
+                   input_steps=[decoder, ],
+                   cache_dirpath=config.env.cache_dirpath, **kwargs
+                   )
+
+    submission_producer = Step(name='submission_producer',
+                               transformer=SubmissionProducer(),
+                               input_steps=[resizer, label_encoder],
+                               input_data=['input', ],
+                               adapter={'image_ids': ([('input', 'img_ids')]),
+                                        'results': ([(resizer.name, 'results')]),
+                                        'image_size': ([('input', 'image_size')]),
+                                        'decoder_dict': ([(label_encoder.name, 'dict')])},
+                               cache_dirpath=config.env.cache_dirpath, **kwargs
+                               )
+    return submission_producer
 
 
 PIPELINES = {'retinanet': {'train': partial(retinanet, train_mode=True),

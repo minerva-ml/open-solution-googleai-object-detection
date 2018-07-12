@@ -35,12 +35,11 @@ class SubmissionProducer(BaseTransformer):
     def get_bbox_relative(self, bbox, size):
         x = size[0]
         y = size[1]
-        x_min = bbox[0]/x
-        x_max = bbox[1]/x
-        y_min = bbox[2]/y
-        y_max = bbox[3]/y
-        #print(x, y, bbox)#test
-        result = [x_min, x_max, y_min, y_max]
+        x_center = bbox[0]/x
+        y_center = bbox[1]/y
+        h = bbox[2]/x
+        w = bbox[3]/y
+        result = [x_center, y_center, h, w]
         return [str(r) for r in result]
 
 
@@ -94,3 +93,9 @@ def box_nms(bboxes, scores, threshold=0.5, mode='union'):
             break
         order = order[ids+1]
     return torch.LongTensor(keep)
+
+
+def resize_bboxes(result, target_size):
+    boxes, labels = result
+    resized_boxes = []
+    return resized_boxes, labels
