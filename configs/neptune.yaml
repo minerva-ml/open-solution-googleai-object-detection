@@ -39,6 +39,7 @@ parameters:
   default_valid_ids: 1
   loader_mode: resize
   stream_mode: 0
+  training_subset_size: 100
 
 # General parameters
   image_h: 256
@@ -53,11 +54,9 @@ parameters:
   pool_kernel: 3
   pool_stride: 2
   repeat_blocks: 4
-  encoder: ResNet101
-
-# U-Net loss weights (multi-output)
-  bce_mask: 1.0
-  dice_mask: 0.2
+  encoder_depth: 50
+  num_classes: 500
+  pretrained: 1
 
 # Training schedule
   epochs_nr: 100

@@ -3,10 +3,11 @@ import os
 from attrdict import AttrDict
 from deepsense import neptune
 
-from .utils import read_params
+from .utils import NeptuneContext
 
-ctx = neptune.Context()
-params = read_params(ctx, fallback_file='neptune.yaml')
+neptune_ctx = NeptuneContext()
+params = neptune_ctx.params
+ctx = neptune_ctx.ctx
 
 SIZE_COLUMNS = ['height', 'width']
 X_COLUMNS = ['file_path_image']
@@ -43,12 +44,14 @@ SOLUTION_CONFIG = AttrDict({
                                   'w_pad': params.w_pad,
                                   'h': params.image_h,
                                   'w': params.image_w,
-                                  'pad_method': params.pad_method
+                                  'pad_method': params.pad_method,
+                                  'images_dir': params.train_imgs_dir
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
                                               'shuffle': True,
                                               'num_workers': params.num_workers,
-                                              'pin_memory': params.pin_memory
+                                              'pin_memory': params.pin_memory,
+                                              'subset_size': params.training_subset_size
                                               },
                                  'inference': {'batch_size': params.batch_size_inference,
                                                'shuffle': False,
@@ -69,7 +72,9 @@ SOLUTION_CONFIG = AttrDict({
                                                  'in_channels': params.image_channels,
                                                  'out_channels': params.channels_per_output,
                                                  'nr_outputs': params.nr_unet_outputs,
-                                                 'encoder': params.encoder
+                                                 'encoder_depth': params.encoder_depth,
+                                                 'num_classes': params.num_classes,
+                                                 'pretrained': params.pretrained
                                                  },
                                 'optimizer_params': {'lr': params.lr,
                                                      },
@@ -106,9 +111,6 @@ SOLUTION_CONFIG = AttrDict({
                                   'epoch_every': 1},
             'validation_monitor': {
                 'epoch_every': 1,
-                'data_dir': params.data_dir,
-                'validate_with_map': params.validate_with_map,
-                'small_annotations_size': params.small_annotations_size,
             },
             'neptune_monitor': {'model_name': 'unet',
                                 'image_nr': 16,
