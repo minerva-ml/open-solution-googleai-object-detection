@@ -65,7 +65,7 @@ class ImageDetectionDataset(Dataset):
 
     def load_target(self, index, img_shape):
         imgId = self.X[index]
-        boxes_rows = self.y[self.y['ImageID'] == imgId]
+        boxes_rows = self.y.query('ImageID == {}'.format(imgId))
         return self.get_boxes_and_labels(boxes_rows, img_shape)
 
     def get_boxes_and_labels(self, boxes_rows, img_shape):

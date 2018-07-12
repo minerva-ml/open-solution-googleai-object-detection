@@ -10,10 +10,11 @@ from .retinanet import RetinaNet, RetinaLoss
 
 
 class Retina(Model):
-    def __init__(self, architecture_config, training_config, callbacks_config):
+    def __init__(self, architecture_config, training_config, callbacks_config, train_mode=False):
         """
         """
         super().__init__(architecture_config, training_config, callbacks_config)
+        self.train_mode = train_mode
         self.encoder_depth = self.architecture_config['model_params']['encoder_depth']
         self.num_classes = self.architecture_config['model_params']['num_classes']
         self.pretrained = self.architecture_config['model_params']['pretrained']
@@ -25,6 +26,9 @@ class Retina(Model):
         self.callbacks = callbacks(self.callbacks_config)
 
     def transform(self, datagen, *args, **kwargs):
+        if self.train_mode:
+            return self
+
         self.model.eval()
 
         batch_gen, steps = datagen

@@ -14,13 +14,16 @@ def retinanet(config, train_mode):
     loader = preprocessing_generator(config, is_train=train_mode)
 
     retinanet = Step(name='retinanet',
-                     transformer=Retina(**config.retinanet),
+                     transformer=Retina(**config.retinanet, train_mode=train_mode),
                      input_data=['callback_input'],
                      input_steps=[loader],
                      cache_dirpath=config.env.cache_dirpath,
                      save_output=save_output,
                      is_trainable=True,
                      load_saved_output=load_saved_output)
+
+    if train_mode:
+        return retinanet
 
     postprocessor = postprocessing(retinanet, config, save_output=save_output)
 
@@ -41,7 +44,6 @@ def preprocessing_generator(config, is_train):
                       input_data=['input', 'validation_input', 'metadata'],
                       adapter={'X': ([('input', 'img_ids')]),
                                'y': ([('metadata', 'annotations')]),
-                               'train_mode': ([('specs', 'train_mode')]),
                                'X_valid': ([('validation_input', 'valid_img_ids')]),
                                'y_valid': ([('metadata', 'annotations')])
                                },
