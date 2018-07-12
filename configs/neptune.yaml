@@ -31,7 +31,7 @@ parameters:
   experiment_dir:  ''
 
 # Execution
-  overwrite: 0
+  clean_experiment_directory_before_training: 1
   num_workers: 4
   num_threads: 1000
   load_in_memory: 0
@@ -39,7 +39,9 @@ parameters:
   default_valid_ids: 1
   loader_mode: resize
   stream_mode: 0
-  training_subset_size: 100
+  validate_with_map: 1
+  small_annotations_size: 20
+  kaggle_message: 'solution-1'
 
 # General parameters
   image_h: 256
@@ -72,7 +74,7 @@ parameters:
   sigma: 10
   dice_smooth: 1
   dice_activation: 'softmax'
-  validate_with_map: 1
+  training_sample_size: 50000
 
 # Regularization
   use_batch_norm: 1

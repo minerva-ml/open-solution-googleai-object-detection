@@ -1,11 +1,11 @@
 import torch
 from torch.autograd import Variable
 from torch import optim
+from toolkit.pytorch_transformers.models import Model
+from toolkit.pytorch_transformers.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
+    ExperimentTiming, ExponentialLRScheduler, EarlyStopping
 
-from .steppy.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
-    ExperimentTiming, ExponentialLRScheduler, EarlyStopping, NeptuneMonitor, ValidationMonitor
-from .steppy.pytorch.models import Model
-
+from .callbacks import NeptuneMonitorDetection, ValidationMonitorDetection
 from .retinanet import RetinaNet, RetinaLoss
 
 
@@ -78,8 +78,8 @@ def callbacks(callbacks_config):
     model_checkpoints = ModelCheckpoint(**callbacks_config['model_checkpoint'])
     lr_scheduler = ExponentialLRScheduler(**callbacks_config['exp_lr_scheduler'])
     training_monitor = TrainingMonitor(**callbacks_config['training_monitor'])
-    validation_monitor = ValidationMonitor(**callbacks_config['validation_monitor'])
-    neptune_monitor = NeptuneMonitor(**callbacks_config['neptune_monitor'])
+    validation_monitor = ValidationMonitorDetection(**callbacks_config['validation_monitor'])
+    neptune_monitor = NeptuneMonitorDetection(**callbacks_config['neptune_monitor'])
     early_stopping = EarlyStopping(**callbacks_config['early_stopping'])
 
     return CallbackList(

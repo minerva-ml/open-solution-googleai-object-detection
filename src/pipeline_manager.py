@@ -2,59 +2,57 @@ import os
 import shutil
 
 import pandas as pd
-from deepsense import neptune
 import json
 from pycocotools.coco import COCO
 
 from .pipeline_config import SOLUTION_CONFIG, SEED, ID_COLUMN
 from .pipelines import PIPELINES
-from .utils import init_logger, read_params, set_seed, get_img_ids_from_folder, map_evaluation, create_annotations, \
+from .utils import init_logger, set_seed, get_img_ids_from_folder, map_evaluation, create_annotations, \
     generate_data_frame_chunks, NeptuneContext
 
+LOGGER = init_logger()
+CTX = NeptuneContext()
+PARAMS = CTX.params
+set_seed(SEED)
 
-class PipelineManager():
-    def __init__(self):
-        neptune_ctx = NeptuneContext()
-        self.params = neptune_ctx.params
-        self.ctx = neptune_ctx.ctx
-        self.logger = init_logger()
-        self.seed = SEED
-        set_seed(self.seed)
 
+class PipelineManager:
     def train(self, pipeline_name, dev_mode):
-        train(pipeline_name, dev_mode, self.logger, self.params, self.seed)
+        train(pipeline_name, dev_mode)
 
     def evaluate(self, pipeline_name, dev_mode, chunk_size):
-        evaluate(pipeline_name, dev_mode, chunk_size, self.logger, self.params, self.seed, self.ctx)
+        evaluate(pipeline_name, dev_mode, chunk_size)
 
     def predict(self, pipeline_name, dev_mode, submit_predictions, chunk_size):
-        predict(pipeline_name, dev_mode, submit_predictions, chunk_size, self.logger, self.params, self.seed)
+        predict(pipeline_name, dev_mode, submit_predictions, chunk_size)
 
     def make_submission(self, submission_filepath):
         make_submission(submission_filepath)
 
 
-def train(pipeline_name, dev_mode, logger, params, seed):
-    logger.info('training')
-    if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
-        shutil.rmtree(params.experiment_dir)
+def train(pipeline_name, dev_mode):
+    LOGGER.info('training')
+    if bool(PARAMS.clean_experiment_directory_before_training) and os.path.isdir(PARAMS.experiment_dir):
+        shutil.rmtree(PARAMS.experiment_dir)
 
-    nrows = 100 if dev_mode else None
-    nrows_valid = 20 if dev_mode else None
-    annotations = pd.read_csv(params.annotations_filepath, nrows=nrows)
-    annotations_human_labels = pd.read_csv(params.annotations_human_verification_filepath, nrows=nrows)
+    annotations = pd.read_csv(PARAMS.annotations_filepath)
+    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_verification_filepath)
 
-    if params.default_valid_ids:
-        valid_ids_data = pd.read_csv(params.valid_ids_filepath, nrows=nrows_valid)
-        valid_img_ids = valid_ids_data[ID_COLUMN].values.tolist()
+    if PARAMS.default_valid_ids:
+        valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
+        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
         train_img_ids = list(set(annotations[ID_COLUMN].unique()) - set(valid_img_ids))
     else:
         raise NotImplementedError
 
+    if dev_mode:
+        train_img_ids = train_img_ids[:100]
+        valid_img_ids = valid_img_ids[:20]
+
     data = {'input': {'img_ids': train_img_ids
                       },
             'validation_input': {'valid_img_ids': valid_img_ids,
-                               },
+                                 },
             'metadata': {'annotations': annotations,
                          'annotations_human_labels': annotations_human_labels
                          }
@@ -66,64 +64,64 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     pipeline.clean_cache()
 
 
-def evaluate(pipeline_name, dev_mode, chunk_size, logger, params, seed, ctx):
+def evaluate(pipeline_name, dev_mode, chunk_size):
     logger.info('evaluating')
 
-    nrows = 100 if dev_mode else None
-    annotations = pd.read_csv(params.annotations_filepath, nrows=nrows)
+    annotations = pd.read_csv(PARAMS.annotations_filepath)
 
-    if params.default_valid_ids:
-        valid_ids_data = pd.read_csv(params.valid_ids_filepath, nrows=nrows)
+    if PARAMS.default_valid_ids:
+        valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
         valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
     else:
         raise NotImplementedError
 
-    pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(valid_img_ids,
-                                     pipeline, logger, CATEGORY_IDS, chunk_size)
+    if dev_mode:
+        valid_img_ids = valid_img_ids[:20]
 
-    logger.info('Calculating mean average precision')
+    pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
+    prediction = generate_prediction(valid_img_ids, pipeline, chunk_size)
+
+    LOGGER.info('Calculating mean average precision')
     mean_average_precision = map_evaluation(annotations, prediction)
-    logger.info('MAP on validation is {}'.format(mean_average_precision))
+    LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
     ctx.channel_send('MAP', 0, mean_average_precision)
 
 
-def predict(pipeline_name, dev_mode, submit_predictions, chunk_size, logger, params, seed):
-    logger.info('predicting')
+def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
+    LOGGER.info('predicting')
 
     n_ids = 100 if dev_mode else None
-    test_img_ids = get_img_ids_from_folder(params.test_imgs_dir, n_ids=n_ids)
+    test_img_ids = get_img_ids_from_folder(PARAMS.test_imgs_dir, n_ids=n_ids)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(test_img_ids,
-                                     pipeline, logger, CATEGORY_IDS, chunk_size)
+    prediction = generate_prediction(test_img_ids, pipeline, chunk_size)
 
     submission = prediction
-    submission_filepath = os.path.join(params.experiment_dir, 'submission.json')
+    submission_filepath = os.path.join(PARAMS.experiment_dir, 'submission.json')
     with open(submission_filepath, "w") as fp:
         fp.write(json.dumps(submission))
-        logger.info('submission saved to {}'.format(submission_filepath))
-        logger.info('submission head \n\n{}'.format(submission[0]))
+        LOGGER.info('submission saved to {}'.format(submission_filepath))
+        LOGGER.info('submission head \n\n{}'.format(submission[0]))
 
     if submit_predictions:
         make_submission(submission_filepath)
 
 
 def make_submission(submission_filepath):
-    logger.info('Making Kaggle submit...')
-    os.system('kaggle competitions submit -c google-ai-open-images-object-detection-track -f {} -m {}'.format(
-        submission_filepath, params.kaggle_message))
-    logger.info('Kaggle submit completed')
+    LOGGER.info('Making Kaggle submit...')
+    os.system(
+        'kaggle competitions submit -c google-ai-open-images-object-detection-track -f {}'.format(submission_filepath))
+    LOGGER.info('Kaggle submit completed')
 
 
-def generate_prediction(img_ids, pipeline, logger, category_ids, chunk_size):
+def generate_prediction(img_ids, pipeline, chunk_size):
     if chunk_size is not None:
-        return _generate_prediction_in_chunks(img_ids, pipeline, logger, category_ids, chunk_size)
+        return _generate_prediction_in_chunks(img_ids, pipeline, chunk_size)
     else:
-        return _generate_prediction(img_ids, pipeline, logger, category_ids)
+        return _generate_prediction(img_ids, pipeline)
 
 
-def _generate_prediction(img_ids, pipeline, logger, category_ids):
+def _generate_prediction(img_ids, pipeline):
     data = {'input': {'img_ids': img_ids
                       },
             }
@@ -133,11 +131,11 @@ def _generate_prediction(img_ids, pipeline, logger, category_ids):
     pipeline.clean_cache()
     y_pred = output['y_pred']
 
-    prediction = create_annotations(img_ids, y_pred, logger, category_ids, CATEGORY_LAYERS)
+    prediction = create_annotations(img_ids, y_pred)
     return prediction
 
 
-def _generate_prediction_in_chunks(img_ids, pipeline, logger, category_ids, chunk_size):
+def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
     prediction = []
     for img_ids_chunk in generate_data_frame_chunks(img_ids, chunk_size):
         data = {'input': {'img_ids': img_ids_chunk
@@ -150,7 +148,7 @@ def _generate_prediction_in_chunks(img_ids, pipeline, logger, category_ids, chun
         pipeline.clean_cache()
         y_pred = output['y_pred']
 
-        prediction_chunk = create_annotations(img_ids_chunk, y_pred, logger, category_ids, CATEGORY_LAYERS)
+        prediction_chunk = create_annotations(img_ids_chunk, y_pred)
         prediction.extend(prediction_chunk)
 
     return prediction

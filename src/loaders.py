@@ -11,47 +11,42 @@ from .retinanet import DataEncoder
 
 
 class RandomSubsetSampler(Sampler):
-    def __init__(self, data_size, subset_size):
-        super().__init__()
+    def __init__(self, data_size, sample_size):
         self.data_size = data_size
-        self.subset_size = subset_size
+        self.sample_size = sample_size
 
     def __iter__(self):
-        return iter(torch.randperm(self.data_size)[:self.subset_size].long())
+        return iter(torch.randperm(self.data_size)[:self.sample_size].long())
 
     def __len__(self):
-        return self.subset_size
+        return self.sample_size
 
 
 class ImageDetectionDataset(Dataset):
-    def __init__(self, X, y, labels, images_dir, encoder, train_mode):
+    def __init__(self, ids, annotations, annotations_human_labels, images_dir, target_encoder, train_mode):
         super().__init__()
-        self.X = X
-        if y is not None:
-            self.y = y
-            self.labels = labels
-        else:
-            self.y = None
-            self.labels = None
+        self.ids = ids
+        self.annotations = annotations
+        self.annotations_human_labels = annotations_human_labels
         self.images_dir = images_dir
-        self.encoder = encoder
+        self.target_encoder = target_encoder
         self.train_mode = train_mode
 
     def __len__(self):
-        return self.X.shape[0]
+        return len(self.ids)
 
     def __getitem__(self, index):
 
         Xi = self.load_from_disk(index)
 
-        if self.y is not None:
+        if self.annotations is not None:
             yi = self.load_target(index, Xi.size)
             return Xi, yi
         else:
             return Xi
 
     def load_from_disk(self, index):
-        imgId = self.X[index]
+        imgId = self.ids[index]
         img_path = os.path.join(self.images_dir, imgId + '.png')
         return self.load_from_disk(img_path)
 
@@ -64,8 +59,8 @@ class ImageDetectionDataset(Dataset):
         return image
 
     def load_target(self, index, img_shape):
-        imgId = self.X[index]
-        boxes_rows = self.y.query('ImageID == {}'.format(imgId))
+        imgId = self.ids[index]
+        boxes_rows = self.annotations.query('ImageID == {}'.format(imgId))
         return self.get_boxes_and_labels(boxes_rows, img_shape)
 
     def get_boxes_and_labels(self, boxes_rows, img_shape):
@@ -97,7 +92,7 @@ class ImageDetectionDataset(Dataset):
         inputs = torch.stack(imgs)
         bbox_targets, clf_targets = [], []
         for i in range(len(imgs)):
-            bbox_target, clf_target = self.encoder.encode(boxes[i], labels[i], input_size=inputs.size()[2:])
+            bbox_target, clf_target = self.target_encoder.encode(boxes[i], labels[i], input_size=inputs.size()[2:])
             bbox_targets.append(bbox_target)
             clf_targets.append(clf_target)
         return inputs, torch.stack(bbox_targets), torch.stack(clf_targets)
@@ -110,39 +105,43 @@ class ImageDetectionLoader(BaseTransformer):
         self.loader_params = AttrDict(loader_params)
         self.dataset_params = AttrDict(dataset_params)
 
-        self.encoder = DataEncoder()
+        self.target_encoder = DataEncoder()
         self.dataset = ImageDetectionDataset
 
-    def transform(self, X, y, labels=None, X_valid=None, y_valid=None):
-        if self.train_mode and y is not None:
-            flow, steps = self.get_datagen(X, y, labels, True, self.loader_params.training)
+    def transform(self, ids, annotations=None, annotations_human_labels=None, valid_ids=None):
+        if self.train_mode and annotations is not None:
+            flow, steps = self.get_datagen(ids, annotations, annotations_human_labels, True,
+                                           self.loader_params.training)
         else:
-            flow, steps = self.get_datagen(X, None, labels, False, self.loader_params.inference)
+            flow, steps = self.get_datagen(ids, None, None, False, self.loader_params.training)
 
-        if X_valid is not None and y_valid is not None:
-            valid_flow, valid_steps = self.get_datagen(X_valid, y_valid, labels, False, self.loader_params.inference)
+        if valid_ids is not None:
+            valid_flow, valid_steps = self.get_datagen(valid_ids, annotations, annotations_human_labels, False,
+                                                       self.loader_params.training)
         else:
             valid_flow = None
             valid_steps = None
         return {'datagen': (flow, steps),
                 'validation_datagen': (valid_flow, valid_steps)}
 
-    def get_datagen(self, X, y, labels, train_mode, loader_params):
+    def get_datagen(self, ids, annotations, annotations_human_labels, train_mode, loader_params):
         if train_mode:
-            dataset = self.dataset(X, y,
-                                   labels=labels,
+            dataset = self.dataset(ids,
+                                   annotations=annotations,
+                                   annotations_human_labels=annotations_human_labels,
                                    images_dir=self.dataset_params.images_dir,
-                                   encoder=self.encoder,
+                                   target_encoder=self.target_encoder,
                                    train_mode=True)
-
             datagen = DataLoader(dataset, **loader_params,
-                                 sampler=RandomSubsetSampler(len(dataset), self.loader_params.training.subset_size),
+                                 sampler=RandomSubsetSampler(data_size=len(dataset),
+                                                             sample_size=self.loader_params.training.sample_size),
                                  collate_fn=dataset.collate_fn)
         else:
-            dataset = self.dataset(X, y,
-                                   labels=labels,
+            dataset = self.dataset(ids,
+                                   annotations=annotations,
+                                   annotations_human_labels=annotations_human_labels,
                                    images_dir=self.dataset_params.images_dir,
-                                   encoder=self.encoder,
+                                   target_encoder=self.target_encoder,
                                    train_mode=False)
 
             datagen = DataLoader(dataset, **loader_params,
