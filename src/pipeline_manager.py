@@ -136,10 +136,7 @@ def _generate_prediction(img_ids, pipeline):
     pipeline.clean_cache()
     output = pipeline.transform(data)
     pipeline.clean_cache()
-    y_pred = output['y_pred']
-
-    prediction = create_annotations(img_ids, y_pred)
-    return prediction
+    return output['y_pred']
 
 
 def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
@@ -154,11 +151,9 @@ def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
         pipeline.clean_cache()
         output = pipeline.transform(data)
         pipeline.clean_cache()
-        y_pred = output['y_pred']
+        prediction.append(output['y_pred'])
 
-        prediction_chunk = create_annotations(img_ids_chunk, y_pred)
-        prediction.extend(prediction_chunk)
-
+    prediction = pd.concat(prediction)
     return prediction
 
 
