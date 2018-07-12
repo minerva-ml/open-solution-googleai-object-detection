@@ -1,5 +1,6 @@
-from .steppy.pytorch.loaders import ImageSegmentationBaseDataset
+from steppy.base import BaseTransformer
 
 
-class DetectionLoader(ImageSegmentationBaseDataset):
-    pass
+class DetectionLoader(BaseTransformer):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)

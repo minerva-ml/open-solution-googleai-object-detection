@@ -45,12 +45,12 @@ def train(pipeline_name, dev_mode, logger, params, seed):
     if bool(params.overwrite) and os.path.isdir(params.experiment_dir):
         shutil.rmtree(params.experiment_dir)
 
-    nrows = 100 if dev_mode else None
+    (nrows, nrows_valid) = (100, 20) if dev_mode else None
     annotations = pd.read_csv(params.annotations_filepath, nrows=nrows)
     annotations_human_labels = pd.read_csv(params.annotations_human_verification_filepath, nrows=nrows)
 
     if params.default_valid_ids:
-        valid_ids_data = pd.read_csv(params.valid_ids_filepath, nrows=nrows)
+        valid_ids_data = pd.read_csv(params.valid_ids_filepath, nrows=nrows_valid)
         valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
         train_img_ids = list(set(annotations[ID_COLUMN].unique()) - set(valid_img_ids))
     else:

@@ -39,6 +39,8 @@ parameters:
   default_valid_ids: 1
   loader_mode: resize
   stream_mode: 0
+  validate_with_map: 1
+  small_annotations_size: 20
 
 # General parameters
   image_h: 256
@@ -73,7 +75,6 @@ parameters:
   sigma: 10
   dice_smooth: 1
   dice_activation: 'softmax'
-  validate_with_map: 1
 
 # Regularization
   use_batch_norm: 1

@@ -8,11 +8,7 @@ from .utils import read_params
 ctx = neptune.Context()
 params = read_params(ctx, fallback_file='neptune.yaml')
 
-SIZE_COLUMNS = ['height', 'width']
-X_COLUMNS = ['file_path_image']
-Y_COLUMNS = ['file_path_mask_eroded_0_dilated_0']
-Y_COLUMNS_SCORING = ['ImageId']
-ID_COLUMN = ['ImageID']
+ID_COLUMN = 'ImageID'
 SEED = 1234
 CATEGORY_IDS = [None, 100]
 CATEGORY_LAYERS = [1, 19]
@@ -33,12 +29,7 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
 SOLUTION_CONFIG = AttrDict({
     'env': {'cache_dirpath': params.experiment_dir},
     'execution': GLOBAL_CONFIG,
-    'xy_splitter': {'x_columns': X_COLUMNS,
-                    'y_columns': Y_COLUMNS,
-                    },
-    'reader_single': {'x_columns': X_COLUMNS,
-                      'y_columns': Y_COLUMNS,
-                      },
+
     'loader': {'dataset_params': {'h_pad': params.h_pad,
                                   'w_pad': params.w_pad,
                                   'h': params.image_h,
@@ -106,7 +97,7 @@ SOLUTION_CONFIG = AttrDict({
                                   'epoch_every': 1},
             'validation_monitor': {
                 'epoch_every': 1,
-                'data_dir': params.data_dir,
+                'data_dir': params.train_imgs_dir,
                 'validate_with_map': params.validate_with_map,
                 'small_annotations_size': params.small_annotations_size,
             },
