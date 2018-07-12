@@ -161,97 +161,6 @@ def read_params(ctx, fallback_file):
     return params
 
 
-def generate_metadata(data_dir,
-                      meta_dir,
-                      masks_overlayed_prefix,
-                      process_train_data=True,
-                      process_validation_data=True,
-                      process_test_data=True,
-                      public_paths=False,
-                      competition_stage=1,
-                      ):
-    if competition_stage != 1:
-        raise NotImplementedError('only stage_1 is supported for now')
-
-    def _generate_metadata(dataset):
-        assert dataset in ["train", "test", "val"], "Unknown dataset!"
-
-        if dataset == "test":
-            dataset = "test_images"
-
-        images_path = os.path.join(data_dir, dataset)
-
-        if dataset != "test_images":
-            images_path = os.path.join(images_path, "images")
-
-        if public_paths:
-            raise NotImplementedError('public neptune paths not implemented')
-        else:
-            masks_overlayed_dirs, mask_overlayed_suffix = [], []
-            for file_path in glob.glob('{}/*'.format(meta_dir)):
-                if ntpath.basename(file_path).startswith(masks_overlayed_prefix):
-                    masks_overlayed_dirs.append(file_path)
-                    mask_overlayed_suffix.append(ntpath.basename(file_path).replace(masks_overlayed_prefix, ''))
-        df_dict = defaultdict(lambda: [])
-
-        for image_file_path in tqdm(sorted(glob.glob('{}/*'.format(images_path)))):
-            image_id = ntpath.basename(image_file_path).split('.')[0]
-
-            is_train = 0
-            is_valid = 0
-            is_test = 0
-
-            if dataset == "test_images":
-                n_buildings = None
-                is_test = 1
-                df_dict['ImageId'].append(image_id)
-                df_dict['file_path_image'].append(image_file_path)
-                df_dict['is_train'].append(is_train)
-                df_dict['is_valid'].append(is_valid)
-                df_dict['is_test'].append(is_test)
-                df_dict['n_buildings'].append(n_buildings)
-                for mask_dir_suffix in mask_overlayed_suffix:
-                    df_dict['file_path_mask' + mask_dir_suffix].append(None)
-
-            else:
-                n_buildings = None
-                if dataset == "val":
-                    is_valid = 1
-                else:
-                    is_train = 1
-                df_dict['ImageId'].append(image_id)
-                df_dict['file_path_image'].append(image_file_path)
-                df_dict['is_train'].append(is_train)
-                df_dict['is_valid'].append(is_valid)
-                df_dict['is_test'].append(is_test)
-                df_dict['n_buildings'].append(n_buildings)
-
-                for mask_dir, mask_dir_suffix in zip(masks_overlayed_dirs, mask_overlayed_suffix):
-                    file_path_mask = os.path.join(mask_dir, dataset, "masks", '{}.png'.format(image_id))
-                    df_dict['file_path_mask' + mask_dir_suffix].append(file_path_mask)
-
-        return pd.DataFrame.from_dict(df_dict)
-
-    metadata = pd.DataFrame()
-    if process_train_data:
-        train_metadata = _generate_metadata(dataset="train")
-        metadata = metadata.append(train_metadata, ignore_index=True)
-    if process_validation_data:
-        validation_metadata = _generate_metadata(dataset="val")
-        metadata = metadata.append(validation_metadata, ignore_index=True)
-    if process_test_data:
-        test_metadata = _generate_metadata(dataset="test")
-        metadata = metadata.append(test_metadata, ignore_index=True)
-    if not (process_test_data or process_train_data or process_validation_data):
-        raise ValueError('At least one of train_data, validation_data or test_data has to be set to True')
-
-    return metadata
-
-
-def squeeze_inputs(inputs):
-    return np.squeeze(inputs[0], axis=1)
-
-
 def softmax(X, theta=1.0, axis=None):
     """
     https://nolanbconaway.github.io/blog/2017/softmax-numpy
@@ -425,3 +334,4 @@ def make_apply_transformer_stream(func, output_name='output', apply_on=None):
                     raise Exception('All inputs must be iterable')
 
     return StaticApplyTransformerStream()
+

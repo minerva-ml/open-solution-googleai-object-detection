@@ -1,93 +1,102 @@
 from functools import partial
 
 from steppy.base import IdentityOperation
+from steppy.adapter import Adapter, E
 
-from . import loaders
+from .loaders import ImageDetectionLoader
 from .steppy.base import Step
-from .models import BaseRetina
+from .models import Retina
 from .preprocessing import GoogleAiLabelEncoder, GoogleAiLabelDecoder
 
 
 def retinanet(config, train_mode):
-    save_output = False
-    load_saved_output = False
+    persist_output = False
+    load_persisted_output = False
 
     loader, label_encoder = preprocessing_generator(config, is_train=train_mode)
 
     retinanet = Step(name='retinanet',
-                     transformer=BaseRetina(**config.retinanet),
-                     input_data=['callback_input'],
+                     transformer=Retina(**config.retinanet, train_mode=train_mode),
                      input_steps=[loader],
                      cache_dirpath=config.env.cache_dirpath,
-                     save_output=save_output,
+                     persist_output=persist_output,
                      is_trainable=True,
-                     load_saved_output=load_saved_output)
+                     load_persisted_output=load_persisted_output)
 
-    postprocessor = postprocessing(retinanet, label_encoder, config, save_output=save_output)
+    if train_mode:
+        return retinanet
+
+    postprocessor = postprocessing(retinanet, label_encoder, config)
 
     output = Step(name='output',
                   transformer=IdentityOperation(),
                   input_steps=[postprocessor],
-                  adapter={'y_pred': ([(postprocessor.name, 'postprocessed_images')]),
-                           },
+                  adapter=Adapter({'y_pred': E(postprocessor.name, 'postprocessed_images')}),
                   cache_dirpath=config.env.cache_dirpath,
-                  save_output=save_output, load_saved_output=load_saved_output)
+                  persist_output=persist_output,
+                  load_persisted_output=load_persisted_output)
     return output
 
 
 def preprocessing_generator(config, is_train):
-    if config.execution.loader_mode == 'crop_and_pad':
-        Loader = loaders.DetectionLoader
-    elif config.execution.loader_mode == 'resize':
-        Loader = loaders.DetectionLoader
-    else:
-        raise NotImplementedError('only crop_and_pad and resize options available')
-
     label_encoder = Step(name='label_encoder',
-                         transformer=GoogleAiLabelEncoder(),
+                         transformer=GoogleAiLabelEncoder(**config.label_encoder),
                          input_data=['metadata'],
-                         adapter={'annotations': ([('metadata', 'annotations')]),
-                                  'annotations_human_labels': ([('metadata', 'annotations_human_labels')]),
-                                  },
+                         adapter=Adapter({'annotations': E('metadata', 'annotations'),
+                                          'annotations_human_labels': E('metadata', 'annotations_human_labels')
+                                          }),
+                         is_trainable=True,
                          cache_dirpath=config.env.cache_dirpath)
 
     if is_train:
         loader = Step(name='loader',
-                      transformer=Loader(**config.loader),
-                      input_data=['input', 'callback_input'],
+                      transformer=ImageDetectionLoader(train_mode=True, **config.loader),
+                      input_data=['input', 'validation_input'],
                       input_steps=[label_encoder],
-                      adapter={'X': ([('input', 'img_ids')]),
-                               'annotations': ([(label_encoder.name, 'annotations')]),
-                               'annotations_human_labels': ([(label_encoder.name, 'annotations_human_labels')]),
-                               'X_valid': ([('callback_input', 'valid_img_ids')]),
-                               },
+                      adapter=Adapter({'X': E('input', 'img_ids'),
+                                       'y': E(label_encoder.name, 'annotations'),
+                                       'X_valid': E('validation_input', 'valid_img_ids'),
+                                       'y_valid': E(label_encoder.name, 'annotations')
+                                       }),
                       cache_dirpath=config.env.cache_dirpath)
+
+        #
+        # loader = Step(name='loader',
+        #               transformer=ImageDetectionLoader(train_mode=True, **config.loader),
+        #               input_data=['input', 'validation_input'],
+        #               input_steps=[label_encoder],
+        #               adapter={'train_ids': ([('input', 'img_ids')]),
+        #                        'valid_ids': ([('validation_input', 'valid_img_ids')]),
+        #                        'annotations': ([(label_encoder.name, 'annotations')]),
+        #                        'annotations_human_labels': ([(label_encoder.name, 'annotations_human_labels')]),
+        #                        },
+        #               cache_dirpath=config.env.cache_dirpath)
+
     else:
         loader = Step(name='loader',
-                      transformer=Loader(**config.loader),
-                      input_data=['input'],
-                      adapter={'X': ([('input', 'img_ids')]),
-                               'annotations': None,
-                               'annotations_human_labels': None,
-                               'X_valid': None,
-                               },
+                      transformer=ImageDetectionLoader(train_mode=False, **config.loader),
+                      input_data=['specs'],
+                      input_steps=[label_encoder],
+                      adapter=Adapter({'X': E('input', 'img_ids'),
+                                       'y': E(label_encoder.name, 'annotations')
+                                       }),
                       cache_dirpath=config.env.cache_dirpath)
     return loader, label_encoder
 
 
-def postprocessing(model, label_encoder, config, **kwargs):
-    decoder = Step(name='decoder',
-                   transformer=GoogleAiLabelDecoder(label_encoder),
-                   input_steps=[model],
-                   cache_dirpath=config.env.cache_dirpath, **kwargs)
+def postprocessing(model, label_encoder, config):
+    label_decoder = Step(name='label_decoder',
+                         transformer=GoogleAiLabelDecoder(label_encoder.transformer),
+                         input_steps=[model],
+                         cache_dirpath=config.env.cache_dirpath)
 
     postprocessor = Step(name='postprocessor',
                          transformer=IdentityOperation(),
-                         input_steps=[model, decoder],
-                         adapter={'predictions': ([('model', 'predictions')]),
-                                  'label_mapping': ([('decoder', 'label_mapping')]),
-                                  },
-                         cache_dirpath=config.env.cache_dirpath, **kwargs)
+                         input_steps=[model, label_decoder],
+                         adapter=Adapter({'predictions': E('model', 'predictions'),
+                                          'label_mapping': E('decoder', 'label_mapping'),
+                                          }),
+                         cache_dirpath=config.env.cache_dirpath)
     return postprocessor
 
 

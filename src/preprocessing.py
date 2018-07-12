@@ -1,20 +1,33 @@
-from .steppy.base import BaseTransformer
+from sklearn.preprocessing import LabelEncoder
+from sklearn.externals import joblib
+from steppy.base import BaseTransformer
 
 
 class GoogleAiLabelEncoder(BaseTransformer):
-    def transform(self, annotations, annotations_human_labels):
+    def __init__(self, colname):
+        self.colname = colname
+        self.encoder = LabelEncoder()
+
+    def fit(self, annotations, annotations_human_labels, **kwargs):
+        self.encoder.fit(annotations[self.colname])
+        return self
+
+    def transform(self, annotations, annotations_human_labels, **kwargs):
+        annotations[self.colname] = self.encoder.transform(annotations[self.colname])
+        annotations_human_labels[self.colname] = self.encoder.transform(annotations_human_labels[self.colname])
         print(annotations.head())
-        exit()
-        images_with_scores = []
-        for image, score in tqdm(zip(images, scores)):
-            images_with_scores.append((image, score))
-        return {'annotations': images_with_scores,
-                'annotations_human_labels': images_with_scores}
+        return {'annotations': annotations,
+                'annotations_human_labels': annotations_human_labels}
+
+    def load(self, filepath):
+        self.encoder = joblib.load(filepath)
+        return self
+
+    def persist(self, filepath):
+        joblib.dump(self.encoder, filepath)
 
 
 class GoogleAiLabelDecoder(BaseTransformer):
-    def transform(self, encoder):
-        images_with_scores = []
-        for image, score in tqdm(zip(images, scores)):
-            images_with_scores.append((image, score))
-        return {'images_with_scores': images_with_scores}
+    def transform(self, label_encoder):
+        inverse_mapping = label_encoder
+        return {'inverse_mapping': inverse_mapping}

@@ -1,19 +1,19 @@
 import os
-import numpy as np
-import torch
 import json
 import subprocess
+
+import numpy as np
+import torch
 from PIL import Image
 from deepsense import neptune
 from torch.autograd import Variable
 from tempfile import TemporaryDirectory
-from toolkit.pytorch.callbacks import NeptuneMonitor, ValidationMonitor
+from toolkit.pytorch_transformers.callbacks import NeptuneMonitor, ValidationMonitor
 from steppy.base import IdentityOperation
 
 from . import postprocessing as post
 from .steppy.base import Step
-from .utils import get_logger, softmax, coco_evaluation, create_annotations, make_apply_transformer
-from .pipeline_config import CATEGORY_IDS, Y_COLUMNS_SCORING, CATEGORY_LAYERS
+from .utils import get_logger, softmax, map_evaluation, create_annotations, make_apply_transformer
 
 logger = get_logger()
 
@@ -112,7 +112,7 @@ class NeptuneMonitorDetection(NeptuneMonitor):
         return prediction_masks
 
 
-class ValidationMonitorSegmentation(ValidationMonitor):
+class ValidationMonitorDetection(ValidationMonitor):
     """
     TODO
     """
