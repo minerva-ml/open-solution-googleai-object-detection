@@ -128,7 +128,8 @@ def generate_prediction(img_ids, pipeline, chunk_size):
 
 
 def _generate_prediction(img_ids, pipeline):
-    data = {'input': {'img_ids': img_ids
+    data = {'input': {'img_ids': img_ids,
+                      'image_size': (256, 256)
                       },
             }
 
@@ -144,7 +145,8 @@ def _generate_prediction(img_ids, pipeline):
 def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
     prediction = []
     for img_ids_chunk in generate_data_frame_chunks(img_ids, chunk_size):
-        data = {'input': {'img_ids': img_ids_chunk
+        data = {'input': {'img_ids': img_ids_chunk,
+                          'image_size': (256, 256)
                           },
 
                 }

@@ -15,7 +15,7 @@ def retinanet(config, train_mode):
     persist_output = False
     load_persisted_output = False
 
-    loader, label_encoder = preprocessing_generator(config, is_train=train_mode)
+    loader = preprocessing_generator(config, is_train=train_mode)
 
     retinanet = Step(name='retinanet',
                      transformer=Retina(**config.retinanet, train_mode=train_mode),
@@ -28,12 +28,12 @@ def retinanet(config, train_mode):
     if train_mode:
         return retinanet
 
-    postprocessor = postprocessing(retinanet, label_encoder, config)
+    postprocessor = postprocessing(retinanet, loader.get_step('label_encoder'), config)
 
     output = Step(name='output',
                   transformer=IdentityOperation(),
                   input_steps=[postprocessor],
-                  adapter=Adapter({'y_pred': E(postprocessor.name, 'postprocessed_images')}),
+                  adapter=Adapter({'y_pred': E(postprocessor.name, 'submission')}),
                   experiment_directory=config.env.cache_dirpath,
                   persist_output=persist_output,
                   load_persisted_output=load_persisted_output)
@@ -72,7 +72,7 @@ def preprocessing_generator(config, is_train):
                                        'annotations_human_labels': None,
                                        }),
                       experiment_directory=config.env.cache_dirpath)
-    return loader, label_encoder
+    return loader
 
 
 def postprocessing(model, label_encoder, config):
