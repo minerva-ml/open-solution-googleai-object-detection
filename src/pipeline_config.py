@@ -1,7 +1,6 @@
 import os
 
 from attrdict import AttrDict
-from deepsense import neptune
 
 from .utils import NeptuneContext
 
@@ -9,11 +8,8 @@ neptune_ctx = NeptuneContext()
 params = neptune_ctx.params
 ctx = neptune_ctx.ctx
 
-SIZE_COLUMNS = ['height', 'width']
-X_COLUMNS = ['file_path_image']
-Y_COLUMNS = ['file_path_mask_eroded_0_dilated_0']
-Y_COLUMNS_SCORING = ['ImageId']
-ID_COLUMN = ['ImageID']
+ID_COLUMN = 'ImageID'
+LABEL_COLUMN = 'LabelName'
 SEED = 1234
 CATEGORY_IDS = [None, 100]
 CATEGORY_LAYERS = [1, 19]
@@ -34,11 +30,8 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
 SOLUTION_CONFIG = AttrDict({
     'env': {'cache_dirpath': params.experiment_dir},
     'execution': GLOBAL_CONFIG,
-    'xy_splitter': {'x_columns': X_COLUMNS,
-                    'y_columns': Y_COLUMNS,
-                    },
-    'reader_single': {'x_columns': X_COLUMNS,
-                      'y_columns': Y_COLUMNS,
+
+    'label_encoder': {'colname': LABEL_COLUMN
                       },
     'loader': {'dataset_params': {'h_pad': params.h_pad,
                                   'w_pad': params.w_pad,
@@ -51,7 +44,7 @@ SOLUTION_CONFIG = AttrDict({
                                               'shuffle': True,
                                               'num_workers': params.num_workers,
                                               'pin_memory': params.pin_memory,
-                                              'subset_size': params.training_subset_size
+                                              'sample_size': params.training_sample_size
                                               },
                                  'inference': {'batch_size': params.batch_size_inference,
                                                'shuffle': False,
@@ -111,6 +104,9 @@ SOLUTION_CONFIG = AttrDict({
                                   'epoch_every': 1},
             'validation_monitor': {
                 'epoch_every': 1,
+                'data_dir': params.train_imgs_dir,
+                'validate_with_map': params.validate_with_map,
+                'small_annotations_size': params.small_annotations_size,
             },
             'neptune_monitor': {'model_name': 'unet',
                                 'image_nr': 16,
