@@ -1,21 +1,16 @@
-import multiprocessing as mp
-
-import numpy as np
-from skimage.transform import resize
-from skimage.morphology import erosion, dilation, rectangle
 import pandas as pd
 import torch
 
-from .steps.base import BaseTransformer
+from .steppy.base import BaseTransformer
 
 
 class SubmissionProducer(BaseTransformer):
 
-    def transform(self, image_ids, results, target_sizes, decoder_dict):
+    def transform(self, image_ids, results, image_size, decoder_dict):
         self.decoder_dict = decoder_dict
         prediction_strings = []
-        for (bboxes, labels), target_size in zip(results, target_sizes):
-            prediction_strings.append(self.get_prediction_string(bboxes, labels, target_size))
+        for bboxes, labels in results:
+            prediction_strings.append(self.get_prediction_string(bboxes, labels, image_size))
         submission = pd.DataFrame({'ImageId': image_ids, 'PredictionString': prediction_strings})
         return {'submission': submission}
 
@@ -93,9 +88,3 @@ def box_nms(bboxes, scores, threshold=0.5, mode='union'):
             break
         order = order[ids+1]
     return torch.LongTensor(keep)
-
-
-def resize_bboxes(result, target_size):
-    boxes, labels = result
-    resized_boxes = []
-    return resized_boxes, labels

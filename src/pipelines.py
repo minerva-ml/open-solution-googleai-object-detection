@@ -7,8 +7,7 @@ from .loaders import ImageDetectionLoader
 from .steppy.base import Step
 from .models import Retina
 from .retinanet import DataDecoder
-from .postprocessing import SubmissionProducer, resize_bboxes
-from .utils import make_apply_transformer, get_image_size
+from .postprocessing import SubmissionProducer
 from .preprocessing import GoogleAiLabelEncoder, GoogleAiLabelDecoder
 
 
@@ -87,21 +86,14 @@ def postprocessing(model, label_encoder, config):
                    input_steps=[model, ],
                    experiment_directory=config.env.cache_dirpath)
 
-    resizer = Step(name='resizer',
-                   transformer=make_apply_transformer(func=resize_bboxes,
-                                                      output_name='resized_results',
-                                                      ),
-                   input_steps=[decoder, ],
-                   experiment_directory=config.env.cache_dirpath)
-
     submission_producer = Step(name='submission_producer',
                                transformer=SubmissionProducer(),
-                               input_steps=[resizer, label_decoder],
+                               input_steps=[label_decoder,],
                                input_data=['input', ],
-                               adapter={'image_ids': ([('input', 'img_ids')]),
-                                        'results': ([(resizer.name, 'results')]),
-                                        'image_size': ([('input', 'image_size')]),
-                                        'decoder_dict': ([(label_decoder.name, 'dict')])},
+                               adapter=Adapter({'image_ids': E('input', 'img_ids'),
+                                        'results': E(decoder.name, 'results'),
+                                        'image_size': E('input', 'image_size'),
+                                        'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
                                experiment_directory=config.env.cache_dirpath)
     return submission_producer
 
