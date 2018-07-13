@@ -258,10 +258,6 @@ def map_evaluation(ground_truth, prediction):
 #     return cocoEval.stats[0], cocoEval.stats[3]
 
 
-def denormalize_img(image, mean, std):
-    return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)
-
-
 def make_apply_transformer(func, output_name='output', apply_on=None):
     class StaticApplyTransformer(BaseTransformer):
         def transform(self, *args, **kwargs):
