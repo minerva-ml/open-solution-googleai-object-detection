@@ -38,13 +38,12 @@ SOLUTION_CONFIG = AttrDict({
                                   'h': params.image_h,
                                   'w': params.image_w,
                                   'pad_method': params.pad_method,
-                                  'images_dir': None
+                                  'images_dir': None,
+                                  'sample_size': params.training_sample_size
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
-                                              'shuffle': True,
                                               'num_workers': params.num_workers,
-                                              'pin_memory': params.pin_memory,
-                                              'sample_size': params.training_sample_size
+                                              'pin_memory': params.pin_memory
                                               },
                                  'inference': {'batch_size': params.batch_size_inference,
                                                'shuffle': False,
@@ -75,15 +74,7 @@ SOLUTION_CONFIG = AttrDict({
                                                        'weight_decay_conv2d': params.l2_reg_conv,
                                                        },
                                 'weights_init': {'function': 'he',
-                                                 },
-                                'loss_weights': {'bce_mask': params.bce_mask,
-                                                 'dice_mask': params.dice_mask,
-                                                 },
-                                'weighted_cross_entropy': {'w0': params.w0,
-                                                           'sigma': params.sigma,
-                                                           'imsize': (params.image_h, params.image_w)},
-                                'dice': {'smooth': params.dice_smooth,
-                                         'dice_activation': params.dice_activation},
+                                                 }
                                 },
         'training_config': {'epochs': params.epochs_nr,
                             },
@@ -104,16 +95,18 @@ SOLUTION_CONFIG = AttrDict({
                                   'epoch_every': 1},
             'validation_monitor': {
                 'epoch_every': 1,
-                'data_dir': params.train_imgs_dir,
-                'validate_with_map': params.validate_with_map,
-                'small_annotations_size': params.small_annotations_size,
+                # 'data_dir': params.train_imgs_dir,
+                # 'validate_with_map': params.validate_with_map,
+                # 'small_annotations_size': params.small_annotations_size,
             },
             'neptune_monitor': {'model_name': 'unet',
-                                'image_nr': 16,
-                                'image_resize': 0.2,
-                                'outputs_to_plot': params.unet_outputs_to_plot},
+                                # 'image_nr': 16,
+                                # 'image_resize': 0.2,
+                                # 'outputs_to_plot': params.unet_outputs_to_plot
+                                },
             'early_stopping': {'patience': params.patience,
-                               'minimize': not params.validate_with_map},
+                               'minimize': not params.validate_with_map
+                               },
         },
     },
     'postprocessing': {

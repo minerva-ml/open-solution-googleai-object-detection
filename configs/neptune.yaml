@@ -44,8 +44,8 @@ parameters:
   kaggle_message: 'solution-1'
 
 # General parameters
-  image_h: 256
-  image_w: 256
+  image_h: 512
+  image_w: 512
   image_channels: 3
 
 # U-Net parameters (multi-output)
@@ -62,19 +62,16 @@ parameters:
 
 # Training schedule
   epochs_nr: 100
-  batch_size_train: 20
-  batch_size_inference: 20
+  batch_size_train: 8
+  batch_size_inference: 8
   lr: 0.0005
   momentum: 0.9
   gamma: 1.0
   patience: 30
   lr_factor: 0.3
   lr_patience: 30
-  w0: 50
-  sigma: 10
-  dice_smooth: 1
-  dice_activation: 'softmax'
   training_sample_size: 50000
+  validation_sample_size: 10000
 
 # Regularization
   use_batch_norm: 1
