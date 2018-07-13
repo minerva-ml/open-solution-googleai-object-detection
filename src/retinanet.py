@@ -5,7 +5,7 @@ from torch.autograd import Variable
 from torchvision import models
 from math import sqrt
 
-from .steppy.base import BaseTransformer
+from steppy.base import BaseTransformer
 
 
 class FPN(nn.Module):

@@ -116,4 +116,9 @@ SOLUTION_CONFIG = AttrDict({
                                'minimize': not params.validate_with_map},
         },
     },
+    'postprocessing': {
+        'prediction_formatter': {
+            'image_size': (256, 256)
+        }
+    },
 })

@@ -128,8 +128,7 @@ def generate_prediction(img_ids, pipeline, chunk_size):
 
 
 def _generate_prediction(img_ids, pipeline):
-    data = {'input': {'img_ids': img_ids,
-                      'image_size': (256, 256)
+    data = {'input': {'img_ids': img_ids
                       },
             }
 
@@ -140,10 +139,9 @@ def _generate_prediction(img_ids, pipeline):
 
 
 def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
-    prediction = []
+    predictions = []
     for img_ids_chunk in generate_data_frame_chunks(img_ids, chunk_size):
-        data = {'input': {'img_ids': img_ids_chunk,
-                          'image_size': (256, 256)
+        data = {'input': {'img_ids': img_ids_chunk
                           },
 
                 }
@@ -151,22 +149,7 @@ def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
         pipeline.clean_cache()
         output = pipeline.transform(data)
         pipeline.clean_cache()
-        prediction.append(output['y_pred'])
+        predictions.append(output['y_pred'])
 
-    prediction = pd.concat(prediction)
-    return prediction
-
-
-def _get_scoring_model_data(data_dir, meta, num_training_examples, random_seed):
-    annotation_file_path = os.path.join(data_dir, 'train', "annotation.json")
-    coco = COCO(annotation_file_path)
-    meta = meta.sample(num_training_examples, random_state=random_seed)
-    annotations = []
-    for image_id in meta['ImageId'].values:
-        image_annotations = {}
-        for category_id in CATEGORY_IDS:
-            annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=category_id)
-            category_annotations = coco.loadAnns(annotation_ids)
-            image_annotations[category_id] = category_annotations
-        annotations.append(image_annotations)
-    return meta, annotations
+    predictions = pd.concat(predictions)
+    return predictions

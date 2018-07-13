@@ -7,7 +7,7 @@ from .loaders import ImageDetectionLoader
 from .steppy.base import Step
 from .models import Retina
 from .retinanet import DataDecoder
-from .postprocessing import SubmissionProducer
+from .postprocessing import PredictionFormatter
 from .preprocessing import GoogleAiLabelEncoder, GoogleAiLabelDecoder
 
 
@@ -87,12 +87,11 @@ def postprocessing(model, label_encoder, config):
                    experiment_directory=config.env.cache_dirpath)
 
     submission_producer = Step(name='submission_producer',
-                               transformer=SubmissionProducer(),
+                               transformer=PredictionFormatter(**config.postprocessing.prediction_formatter),
                                input_steps=[label_decoder,],
                                input_data=['input', ],
                                adapter=Adapter({'image_ids': E('input', 'img_ids'),
                                         'results': E(decoder.name, 'results'),
-                                        'image_size': E('input', 'image_size'),
                                         'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
                                experiment_directory=config.env.cache_dirpath)
     return submission_producer
