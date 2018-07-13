@@ -66,7 +66,7 @@ def read_yaml(filepath):
 
 
 def init_logger():
-    logger = logging.getLogger('mapping-challenge')
+    logger = logging.getLogger('google-ai-odt')
     logger.setLevel(logging.INFO)
     message_format = logging.Formatter(fmt='%(asctime)s %(name)s >>> %(message)s',
                                        datefmt='%Y-%m-%d %H-%M-%S')
@@ -84,7 +84,7 @@ def init_logger():
 
 
 def get_logger():
-    return logging.getLogger('mapping-challenge')
+    return logging.getLogger('google-ai-odt')
 
 
 def get_img_ids_from_folder(dirpath, n_ids=None):
