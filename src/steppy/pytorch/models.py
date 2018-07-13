@@ -5,11 +5,13 @@ from functools import partial
 import numpy as np
 import torch
 import torch.nn as nn
+# from torch.nn import DataParallel
+from .parallel import DataParallelModel as DataParallel
 from torch.autograd import Variable
 from torch.nn import init
+from steppy.utils import get_logger
 
 from ..base import BaseTransformer
-from ..utils import get_logger
 from .utils import save_model
 
 logger = get_logger()
@@ -50,7 +52,7 @@ class Model(BaseTransformer):
     def fit(self, datagen, validation_datagen=None):
         self._initialize_model_weights()
 
-        self.model = nn.DataParallel(self.model)
+        self.model = DataParallel(self.model)
 
         if torch.cuda.is_available():
             self.model = self.model.cuda()
@@ -148,8 +150,8 @@ class Model(BaseTransformer):
     def load(self, filepath):
         self.model.eval()
 
-        if not isinstance(self.model, nn.DataParallel):
-            self.model = nn.DataParallel(self.model)
+        if not isinstance(self.model, DataParallel):
+            self.model = DataParallel(self.model)
 
         if torch.cuda.is_available():
             self.model.cpu()

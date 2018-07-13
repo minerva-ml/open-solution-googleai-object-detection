@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from deepsense import neptune
 from torch.optim.lr_scheduler import ExponentialLR
 
-from ..utils import get_logger
+from ...utils import get_logger
 from .utils import Averager, save_model
 from .validation import score_model
 
@@ -54,6 +54,8 @@ class Callback:
         self.batch_id += 1
 
     def get_validation_loss(self):
+        if self.validation_loss is None:
+            self.validation_loss = {}
         if self.epoch_id not in self.validation_loss.keys():
             self.validation_loss[self.epoch_id] = score_model(self.model, self.loss_function, self.validation_datagen)
         return self.validation_loss[self.epoch_id]
@@ -145,7 +147,7 @@ class TrainingMonitor(Callback):
 
 
 class ValidationMonitor(Callback):
-    def __init__(self, epoch_every=None, batch_every=None):
+    def __init__(self, epoch_every=None, batch_every=None, **kwargs):
         super().__init__()
         if epoch_every == 0:
             self.epoch_every = False
@@ -280,7 +282,7 @@ class ModelCheckpoint(Callback):
 
 
 class NeptuneMonitor(Callback):
-    def __init__(self, model_name):
+    def __init__(self, model_name, **kwargs):
         super().__init__()
         self.model_name = model_name
         self.ctx = neptune.Context()

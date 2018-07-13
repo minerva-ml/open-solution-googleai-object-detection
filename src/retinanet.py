@@ -133,7 +133,9 @@ class RetinaNet(nn.Module):
                                                                       self.num_classes)  # [N,9*20,H,W] -> [N,H,W,9*20] -> [N,H*W*9,20]
             loc_preds.append(loc_pred)
             cls_preds.append(cls_pred)
-        return torch.cat(loc_preds, 1), torch.cat(cls_preds, 1)
+
+        output = torch.cat((torch.cat(loc_preds, 1), torch.cat(cls_preds, 1)), 2)
+        return output
 
     def _make_head(self, out_planes):
         layers = []
@@ -213,8 +215,8 @@ class RetinaLoss(nn.Module):
         loss:
           (tensor) loss = SmoothL1Loss(loc_preds, loc_targets) + FocalLoss(cls_preds, cls_targets).
         """
-        loc_preds, cls_preds = output
-        loc_targets, cls_targets = target
+        loc_preds, cls_preds = output[:, :, :4], output[:, :, 4:]
+        loc_targets, cls_targets = target[:, :, :4], target[:, :, 4].long()
 
         pos = cls_targets > 0  # [N,#anchors]
         num_pos = pos.data.long().sum()
@@ -228,7 +230,7 @@ class RetinaLoss(nn.Module):
         masked_cls_preds = cls_preds[mask].view(-1,self.num_classes)
 
         loc_loss = F.smooth_l1_loss(masked_loc_preds, masked_loc_targets, size_average=False)
-        cls_loss = self.focal_loss_alt(masked_cls_preds, cls_targets[pos_neg])
+        cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg])
         loss = (loc_loss+cls_loss)/num_pos
         return loss
 

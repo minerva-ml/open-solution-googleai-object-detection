@@ -41,7 +41,7 @@ def train(pipeline_name, dev_mode):
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
         valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
-        train_img_ids = list(set(annotations[ID_COLUMN].unique()) - set(valid_img_ids))
+        train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
     else:
         raise NotImplementedError
 

@@ -1,9 +1,10 @@
 import torch
 from torch.autograd import Variable
 from torch import optim
-from toolkit.pytorch_transformers.models import Model
-from toolkit.pytorch_transformers.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
-    ExperimentTiming, ExponentialLRScheduler, EarlyStopping
+from .steppy.pytorch.models import Model
+from .steppy.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
+    ExperimentTiming, ExponentialLRScheduler, EarlyStopping, NeptuneMonitor, ValidationMonitor
+from .steppy.pytorch.parallel import DataParallelCriterion
 
 from .callbacks import NeptuneMonitorDetection, ValidationMonitorDetection
 from .retinanet import RetinaNet, RetinaLoss
@@ -22,7 +23,7 @@ class Retina(Model):
         self.weight_regularization = weight_regularization
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
-        self.loss_function = [('FocalLoss', RetinaLoss(num_classes=self.num_classes), 1.0)]
+        self.loss_function = [('FocalLoss', DataParallelCriterion(RetinaLoss(num_classes=self.num_classes)), 1.0)]
         self.callbacks = callbacks(self.callbacks_config)
 
     def transform(self, datagen, *args, **kwargs):
@@ -55,6 +56,44 @@ class Retina(Model):
                    'labels_prediction': labels}
         return outputs
 
+    def _fit_loop(self, data):
+        X = data[0]
+        targets_tensors = data[1:]
+
+        if torch.cuda.is_available():
+            X = Variable(X).cuda()
+            targets_var = []
+            for target_tensor in targets_tensors:
+                # TODO: this is only temporary solution
+                dims = list(target_tensor.size())
+                last_dim = dims[-1]
+                dims[-1] = last_dim + self.num_classes - 1
+                target_tensor_ = torch.zeros(dims)
+                target_tensor_[:, :, :5] = target_tensor
+                targets_var.append(Variable(target_tensor_).cuda())
+        else:
+            X = Variable(X)
+            targets_var = []
+            for target_tensor in targets_tensors:
+                targets_var.append(Variable(target_tensor))
+
+        self.optimizer.zero_grad()
+        outputs_batch = self.model(X)
+        partial_batch_losses = {}
+
+        if len(self.output_names) == 1:
+            for (name, loss_function, weight), target in zip(self.loss_function, targets_var):
+                batch_loss = loss_function(outputs_batch, target) * weight
+        else:
+            for (name, loss_function, weight), output, target in zip(self.loss_function, outputs_batch, targets_var):
+                partial_batch_losses[name] = loss_function(output, target) * weight
+            batch_loss = sum(partial_batch_losses.values())
+        partial_batch_losses['sum'] = batch_loss
+        batch_loss.backward()
+        self.optimizer.step()
+
+        return partial_batch_losses
+
     def set_model(self):
         self.model = RetinaNet(encoder_depth=self.encoder_depth,
                                num_classes=self.num_classes,
@@ -78,8 +117,10 @@ def callbacks(callbacks_config):
     model_checkpoints = ModelCheckpoint(**callbacks_config['model_checkpoint'])
     lr_scheduler = ExponentialLRScheduler(**callbacks_config['exp_lr_scheduler'])
     training_monitor = TrainingMonitor(**callbacks_config['training_monitor'])
-    validation_monitor = ValidationMonitorDetection(**callbacks_config['validation_monitor'])
-    neptune_monitor = NeptuneMonitorDetection(**callbacks_config['neptune_monitor'])
+    # validation_monitor = ValidationMonitorDetection(**callbacks_config['validation_monitor'])
+    # neptune_monitor = NeptuneMonitorDetection(**callbacks_config['neptune_monitor'])
+    validation_monitor = ValidationMonitor(**callbacks_config['validation_monitor'])
+    neptune_monitor = NeptuneMonitor(**callbacks_config['neptune_monitor'])
     early_stopping = EarlyStopping(**callbacks_config['early_stopping'])
 
     return CallbackList(
