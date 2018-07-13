@@ -95,16 +95,18 @@ SOLUTION_CONFIG = AttrDict({
                                   'epoch_every': 1},
             'validation_monitor': {
                 'epoch_every': 1,
-                'data_dir': params.train_imgs_dir,
-                'validate_with_map': params.validate_with_map,
-                'small_annotations_size': params.small_annotations_size,
+                # 'data_dir': params.train_imgs_dir,
+                # 'validate_with_map': params.validate_with_map,
+                # 'small_annotations_size': params.small_annotations_size,
             },
             'neptune_monitor': {'model_name': 'unet',
-                                'image_nr': 16,
-                                'image_resize': 0.2,
-                                'outputs_to_plot': params.unet_outputs_to_plot},
+                                # 'image_nr': 16,
+                                # 'image_resize': 0.2,
+                                # 'outputs_to_plot': params.unet_outputs_to_plot
+                                },
             'early_stopping': {'patience': params.patience,
-                               'minimize': not params.validate_with_map},
+                               'minimize': not params.validate_with_map
+                               },
         },
     },
     'postprocessing': {

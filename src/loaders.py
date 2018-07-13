@@ -46,7 +46,8 @@ class ImageDetectionDataset(Dataset):
         Xi = self.image_transform(Xi)
 
         if self.annotations is not None:
-            yi = self.load_target(index, list(Xi.size())[-2:])
+            _, h, w = Xi.size()
+            yi = self.load_target(index, (h, w))
             return Xi, yi
         else:
             return Xi
@@ -98,9 +99,8 @@ class ImageDetectionDataset(Dataset):
         inputs = torch.stack(imgs)
         input_size = torch.Tensor(list(inputs.size()[2:]))
         bbox_targets, clf_targets = [], []
-        for i in range(len(imgs)):
-            bbox_target, clf_target = self.target_encoder.encode(boxes[i], labels[i],
-                                                                 input_size=input_size,)
+        for box, label in zip(boxes, labels):
+            bbox_target, clf_target = self.target_encoder.encode(box, label, input_size=input_size)
             bbox_targets.append(bbox_target)
             clf_targets.append(clf_target)
 

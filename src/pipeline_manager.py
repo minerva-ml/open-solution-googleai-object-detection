@@ -39,7 +39,7 @@ def train(pipeline_name, dev_mode):
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_verification_filepath)
 
     if PARAMS.default_valid_ids:
-        valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
+        valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath).sample(PARAMS.validation_sample_size, random_state=SEED)
         valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
         train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
     else:

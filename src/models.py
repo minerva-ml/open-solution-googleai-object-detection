@@ -2,7 +2,7 @@ import torch
 from torch.autograd import Variable
 from torch import optim
 from .steppy.pytorch.models import Model
-from .steppy.pytorch.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
+from toolkit.pytorch_transformers.callbacks import CallbackList, TrainingMonitor, ModelCheckpoint, \
     ExperimentTiming, ExponentialLRScheduler, EarlyStopping, NeptuneMonitor, ValidationMonitor
 from .steppy.pytorch.parallel import DataParallelCriterion
 
@@ -64,13 +64,7 @@ class Retina(Model):
             X = Variable(X).cuda()
             targets_var = []
             for target_tensor in targets_tensors:
-                # TODO: this is only temporary solution
-                dims = list(target_tensor.size())
-                last_dim = dims[-1]
-                dims[-1] = last_dim + self.num_classes - 1
-                target_tensor_ = torch.zeros(dims)
-                target_tensor_[:, :, :5] = target_tensor
-                targets_var.append(Variable(target_tensor_).cuda())
+                targets_var.append(Variable(target_tensor).cuda())
         else:
             X = Variable(X)
             targets_var = []
