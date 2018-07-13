@@ -65,7 +65,7 @@ def preprocessing_generator(config, is_train):
     else:
         loader = Step(name='loader',
                       transformer=ImageDetectionLoader(train_mode=False, **config.loader),
-                      input_data=['specs'],
+                      input_data=['input'],
                       input_steps=[label_encoder],
                       adapter=Adapter({'ids': E('input', 'img_ids'),
                                        'annotations': None,
@@ -88,8 +88,8 @@ def postprocessing(model, label_encoder, config):
 
     submission_producer = Step(name='submission_producer',
                                transformer=PredictionFormatter(**config.postprocessing.prediction_formatter),
-                               input_steps=[label_decoder, ],
-                               input_data=['input', ],
+                               input_steps=[label_decoder, decoder],
+                               input_data=['input'],
                                adapter=Adapter({'image_ids': E('input', 'img_ids'),
                                                 'results': E(decoder.name, 'results'),
                                                 'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),

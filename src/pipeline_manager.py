@@ -146,6 +146,9 @@ def generate_prediction(img_ids, pipeline, chunk_size):
 def _generate_prediction(img_ids, pipeline):
     data = {'input': {'img_ids': img_ids
                       },
+            'metadata': {'annotations': None,
+                         'annotations_human_labels': None
+                         }
             }
 
     pipeline.clean_cache()
@@ -159,7 +162,9 @@ def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
     for img_ids_chunk in generate_data_frame_chunks(img_ids, chunk_size):
         data = {'input': {'img_ids': img_ids_chunk
                           },
-
+                'metadata': {'annotations': None,
+                             'annotations_human_labels': None
+                             }
                 }
 
         pipeline.clean_cache()
