@@ -264,8 +264,11 @@ def make_apply_transformer_stream(func, output_name='output', apply_on=None):
     return StaticApplyTransformerStream()
 
 
-def competition_metric_evaluation(annotation_filepath, annotations_human_labels_filepath, prediction_filepath,
-                                  label_hierarchy_filepath, metrics_filepath):
+def competition_metric_evaluation(annotation_filepath,
+                                  annotations_human_labels_filepath,
+                                  prediction_filepath,
+                                  label_hierarchy_filepath,
+                                  metrics_filepath):
     create_env_vars_cmd = """
     HIERARCHY_FILE={0} 
     BOUNDING_BOXES={1}
