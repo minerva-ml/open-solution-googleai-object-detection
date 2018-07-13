@@ -19,13 +19,14 @@ exclude:
   - neptune.log
   - offline_job.log
   - notebooks
+  - src/object_detection
 
 parameters:
 # Data Paths
   train_imgs_dir: ''
   test_imgs_dir: ''
   annotations_filepath: ''
-  annotations_human_verification_filepath: ''
+  annotations_human_labels_filepath: ''
   bbox_hierarchy_filepath: ''
   valid_ids_filepath: ''
   experiment_dir:  ''

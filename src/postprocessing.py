@@ -24,17 +24,15 @@ class PredictionFormatter(BaseTransformer):
         prediction_string = " ".join(prediction_list)
         return prediction_string
 
-
     def _get_class_id(self, label):
         return self.decoder_dict[label]
-
 
     def _get_bbox_relative(self, bbox):
         x = self.image_size[0]
         y = self.image_size[1]
-        x_center = bbox[0]/x
-        y_center = bbox[1]/y
-        h = bbox[2]/x
-        w = bbox[3]/y
+        x_center = bbox[0] / x
+        y_center = bbox[1] / y
+        h = bbox[2] / x
+        w = bbox[3] / y
         result = [x_center, y_center, h, w]
         return [str(r) for r in result]

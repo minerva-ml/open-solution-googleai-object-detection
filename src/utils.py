@@ -16,7 +16,7 @@ from PIL import Image
 from attrdict import AttrDict
 from pycocotools import mask as cocomask
 from tqdm import tqdm
-from .steppy.base import BaseTransformer
+from steppy.base import BaseTransformer
 
 
 # Alex Martelli's 'Borg'

@@ -4,7 +4,7 @@ from steppy.base import IdentityOperation
 from steppy.adapter import Adapter, E
 
 from .loaders import ImageDetectionLoader
-from .steppy.base import Step
+from .steppy_dev.base import Step
 from .models import Retina
 from .retinanet import DataDecoder
 from .postprocessing import PredictionFormatter
@@ -88,11 +88,11 @@ def postprocessing(model, label_encoder, config):
 
     submission_producer = Step(name='submission_producer',
                                transformer=PredictionFormatter(**config.postprocessing.prediction_formatter),
-                               input_steps=[label_decoder,],
+                               input_steps=[label_decoder, ],
                                input_data=['input', ],
                                adapter=Adapter({'image_ids': E('input', 'img_ids'),
-                                        'results': E(decoder.name, 'results'),
-                                        'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
+                                                'results': E(decoder.name, 'results'),
+                                                'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
                                experiment_directory=config.env.cache_dirpath)
     return submission_producer
 

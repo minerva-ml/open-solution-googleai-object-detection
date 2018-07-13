@@ -14,15 +14,15 @@ logger = get_logger()
 
 
 class Step:
-    """Step is a building block of steppy pipelines.
-    It is an execution wrapper over the transformer (see :class:`~steppy.base.BaseTransformer`),
+    """Step is a building block of steppy_dev pipelines.
+    It is an execution wrapper over the transformer (see :class:`~steppy_dev.base.BaseTransformer`),
     which realizes single operation on data. With Step you can:
     1. design multiple input/output data flows and connections between Steps.
     2. handle persistence and caching of transformers and intermediate results.
     Step executes `fit_transform` method inspired by the sklearn on every step recursively
     starting from the very last Step and making its way forward through the `input_steps`.
     One can easily debug the data flow by plotting the pipeline graph
-    (see: :func:`~steppy.utils.persist_as_png`) or return step in a jupyter notebook cell.
+    (see: :func:`~steppy_dev.utils.persist_as_png`) or return step in a jupyter notebook cell.
     Attributes:
         name (str): Step name.
             Each step in a pipeline must have a unique name. This names is used to persist or cache
@@ -69,9 +69,9 @@ class Step:
                     self.input_steps=[cnn_step, rf_step, ensemble_step, guesses_step]
                 Each element of the list is Step instance.
         adapter (obj): It renames and arranges inputs that are passed to the Transformer
-            (see :class:`~steppy.base.BaseTransformer`).
+            (see :class:`~steppy_dev.base.BaseTransformer`).
             Default is ``None``.
-            If ``not None``, then must be an instance of the :class:`~steppy.adapter.Adapter` class.
+            If ``not None``, then must be an instance of the :class:`~steppy_dev.adapter.Adapter` class.
             Example:
                 .. code-block:: python
                     self.adapter=Adapter({'X': E('input', 'images'),
@@ -82,7 +82,7 @@ class Step:
             * `X` is key to the data stored under the `images` key
             * `y` is key to the data stored under the `labels` key
                 where both `images` and `labels` keys comes from `input`
-                (see :attr:`~steppy.base.Step.input_data`)
+                (see :attr:`~steppy_dev.base.Step.input_data`)
         cache_output (bool): If True, Step output dictionary will be cached to the
             ``<experiment_directory>/cache/<name>``, when transform method of the Step transformer
             is completed. If the same Step is used multiple times, transform method is invoked
@@ -237,7 +237,7 @@ class Step:
     @property
     def output_is_persisted(self):
         """(bool): True if step outputs exists under the ``<experiment_directory>/outputs/<name>``.
-            See :attr:`~steppy.base.Step.persist_output`.
+            See :attr:`~steppy_dev.base.Step.persist_output`.
         """
         return os.path.exists(self.exp_dir_outputs_step)
 
@@ -484,3 +484,89 @@ class Step:
 
     def __str__(self):
         return pprint.pformat(self.upstream_pipeline_structure)
+
+
+class BaseTransformer:
+    """Abstraction on two level fit and transform execution.
+    Base transformer is an abstraction strongly inspired by the ``sklearn.Transformer`` and
+    ``sklearn.Estimator``. Two main concepts are:
+        1. Every action that can be performed on data (transformation, model training) can be
+        performed in two steps: fitting (where trainable parameters are estimated) and transforming
+        (where previously estimated parameters are used to transform the data into desired state).
+        2. Every transformer knows how it should be persisted and loaded (especially useful when
+        working with Keras/Pytorch and Sklearn) in one pipeline.
+    """
+
+    def __init__(self):
+        self.estimator = None
+
+    def fit(self, *args, **kwargs):
+        """Performs estimation of trainable parameters.
+        All model estimations with sklearn, keras, pytorch models as well as some preprocessing
+        techniques (normalization) estimate parameters based on data (training data).
+        Those parameters are trained during fit execution and are persisted for the future.
+        Only the estimation logic, nothing else.
+        Args:
+            args: positional arguments (can be anything)
+            kwargs: keyword arguments (can be anything)
+        Returns:
+            BaseTransformer: self object
+        """
+        return self
+
+    def transform(self, *args, **kwargs):
+        """Performs transformation of data.
+        All data transformation including prediction with deep learning/machine learning models
+        can be performed here. No parameters should be estimated in this method nor stored as
+        class attributes. Only the transformation logic, nothing else.
+        Args:
+            args: positional arguments (can be anything)
+            kwargs: keyword arguments (can be anything)
+        Returns:
+            dict: outputs
+        """
+        raise NotImplementedError
+
+    def fit_transform(self, *args, **kwargs):
+        """Performs fit followed by transform.
+        This method simply combines fit and transform.
+        Args:
+            args: positional arguments (can be anything)
+            kwargs: keyword arguments (can be anything)
+        Returns:
+            dict: outputs
+        """
+        self.fit(*args, **kwargs)
+        return self.transform(*args, **kwargs)
+
+    def load(self, filepath):
+        """Loads the trainable parameters of the transformer.
+        Specific implementation of loading persisted model parameters should be implemented here.
+        In case of transformers that do not learn any parameters one can leave this method as is.
+        Args:
+            filepath (str): filepath from which the transformer should be loaded
+        Returns:
+            BaseTransformer: self instance
+        """
+        return self
+
+    def persist(self, filepath):
+        """Saves the trainable parameters of the transformer
+        Specific implementation of model parameter persistence should be implemented here.
+        In case of transformers that do not learn any parameters one can leave this method as is.
+        Args:
+            filepath (str): filepath where the transformer parameters should be persisted
+        """
+        joblib.dump({}, filepath)
+
+
+class IdentityOperation(BaseTransformer):
+    """Transformer that performs identity operation, f(x)=x.
+    """
+
+    def transform(self, **kwargs):
+        return kwargs
+
+
+class StepsError(Exception):
+    pass

@@ -54,17 +54,7 @@ SOLUTION_CONFIG = AttrDict({
                },
 
     'retinanet': {
-        'architecture_config': {'model_params': {'n_filters': params.n_filters,
-                                                 'conv_kernel': params.conv_kernel,
-                                                 'pool_kernel': params.pool_kernel,
-                                                 'pool_stride': params.pool_stride,
-                                                 'repeat_blocks': params.repeat_blocks,
-                                                 'batch_norm': params.use_batch_norm,
-                                                 'dropout': params.dropout_conv,
-                                                 'in_channels': params.image_channels,
-                                                 'out_channels': params.channels_per_output,
-                                                 'nr_outputs': params.nr_unet_outputs,
-                                                 'encoder_depth': params.encoder_depth,
+        'architecture_config': {'model_params': {'encoder_depth': params.encoder_depth,
                                                  'num_classes': params.num_classes,
                                                  'pretrained': params.pretrained
                                                  },

@@ -35,7 +35,7 @@ def train(pipeline_name, dev_mode):
         shutil.rmtree(PARAMS.experiment_dir)
 
     annotations = pd.read_csv(PARAMS.annotations_filepath)
-    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_verification_filepath)
+    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath).sample(PARAMS.validation_sample_size, random_state=SEED)
@@ -69,6 +69,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
     LOGGER.info('evaluating')
 
     annotations = pd.read_csv(PARAMS.annotations_filepath)
+    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
