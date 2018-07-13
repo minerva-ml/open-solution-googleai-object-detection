@@ -3,15 +3,14 @@ import shutil
 
 import pandas as pd
 import json
-from pycocotools.coco import COCO
 
 from .pipeline_config import SOLUTION_CONFIG, SEED, ID_COLUMN
 from .pipelines import PIPELINES
-from .utils import init_logger, set_seed, get_img_ids_from_folder, map_evaluation, create_annotations, \
+from .utils import init_logger, set_seed, get_img_ids_from_folder, competition_metric_evaluation, \
     generate_data_frame_chunks, NeptuneContext
 
 LOGGER = init_logger()
-CTX = NeptuneContext()
+CTX = NeptuneContext().ctx
 PARAMS = CTX.params
 set_seed(SEED)
 
@@ -65,9 +64,10 @@ def train(pipeline_name, dev_mode):
 
 
 def evaluate(pipeline_name, dev_mode, chunk_size):
-    logger.info('evaluating')
+    LOGGER.info('evaluating')
 
     annotations = pd.read_csv(PARAMS.annotations_filepath)
+    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_verification_filepath)
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
@@ -81,10 +81,26 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(valid_img_ids, pipeline, chunk_size)
 
+    prediction_filepath = os.path.join(PARAMS.experiment_dir, 'evaluation_prediction.csv')
+    prediction.to_csv(prediction_filepath, index=None)
+
     LOGGER.info('Calculating mean average precision')
-    mean_average_precision = map_evaluation(annotations, prediction)
+    validation_annotations = annotations[annotations[ID_COLUMN].isin(valid_img_ids)]
+    validation_annotations_human_labels = annotations_human_labels[annotations[ID_COLUMN].isin(valid_img_ids)]
+    validation_annotations_filepath = os.path.join(PARAMS.experiment_dir, 'validation_annotations.csv')
+    validation_annotations.to_csv(validation_annotations_filepath, index=None)
+    validation_annotations_human_labels_filepath = os.path.join(PARAMS.experiment_dir,
+                                                                'validation_annotations_human_labels.csv')
+    validation_annotations_human_labels.to_csv(validation_annotations_human_labels_filepath, index=None)
+    metrics_filepath = os.path.join(PARAMS.experiment_dir, 'validation_metrics')
+    mean_average_precision = competition_metric_evaluation(annotation_filepath=validation_annotations_filepath,
+                                                           annotations_human_labels_filepath=validation_annotations_human_labels_filepath,
+                                                           prediction_filepath=prediction_filepath,
+                                                           label_hierarchy_filepath=PARAMS.bbox_hierarchy_filepath,
+                                                           metrics_filepath=metrics_filepath
+                                                           )
     LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
-    ctx.channel_send('MAP', 0, mean_average_precision)
+    CTX.channel_send('MAP', 0, mean_average_precision)
 
 
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
