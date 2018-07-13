@@ -11,15 +11,12 @@ ctx = neptune_ctx.ctx
 ID_COLUMN = 'ImageID'
 LABEL_COLUMN = 'LabelName'
 SEED = 1234
-CATEGORY_IDS = [None, 100]
-CATEGORY_LAYERS = [1, 19]
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
                  'num_workers': params.num_workers,
-                 'num_classes': 2,
                  'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
@@ -33,9 +30,7 @@ SOLUTION_CONFIG = AttrDict({
 
     'label_encoder': {'colname': LABEL_COLUMN
                       },
-    'loader': {'dataset_params': {'h_pad': params.h_pad,
-                                  'w_pad': params.w_pad,
-                                  'h': params.image_h,
+    'loader': {'dataset_params': {'h': params.image_h,
                                   'w': params.image_w,
                                   'pad_method': params.pad_method,
                                   'images_dir': None,

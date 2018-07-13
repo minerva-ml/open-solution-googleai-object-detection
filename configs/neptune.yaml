@@ -48,6 +48,7 @@ parameters:
   image_h: 512
   image_w: 512
   image_channels: 3
+  'pad_method': 'resize'
 
 # Retina parameters (multi-output)
   encoder_depth: 50
@@ -73,24 +74,3 @@ parameters:
   l2_reg_dense: 0.0
   dropout_conv: 0.1
   dropout_dense: 0.0
-
-# Postprocessing
-  threshold: 0.5
-  erode_selem_size: 0
-  dilate_selem_size: 2
-  tta_aggregation_method: gmean
-  nms__iou_threshold: 0.5
-
-# Inference padding
-  crop_image_h: 300
-  crop_image_w: 300
-  h_pad: 10
-  w_pad: 10
-  pad_method: 'replicate'
-
-#Neptune monitor
-  unet_outputs_to_plot: '["multichannel_map",]'
-
-#Scoring model
-  scoring_model: 'lgbm'
-  scoring_model__num_training_examples: 10000
