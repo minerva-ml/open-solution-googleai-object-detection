@@ -130,9 +130,9 @@ class DataParallelCriterion(DataParallel):
 
             return self.module(inputs, *targets, **kwargs)
         targets, kwargs = self.scatter(targets, kwargs, self.device_ids)
-        inputs = tuple((input_,) for input_ in inputs) # added line to match output dim with target dim
         if len(self.device_ids) == 1:
             return self.module(inputs, *targets[0], **kwargs[0])
+        inputs = tuple((input_,) for input_ in inputs) # added line to match output dim with target dim
         replicas = self.replicate(self.module, self.device_ids[:len(inputs)])
         outputs = _criterion_parallel_apply(replicas, inputs, targets, kwargs)
         return Reduce.apply(*outputs) / len(outputs)
