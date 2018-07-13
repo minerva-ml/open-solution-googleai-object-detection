@@ -49,6 +49,8 @@ def train(pipeline_name, dev_mode):
         train_img_ids = train_img_ids[:100]
         valid_img_ids = valid_img_ids[:20]
 
+    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
+
     data = {'input': {'img_ids': train_img_ids
                       },
             'validation_input': {'valid_img_ids': valid_img_ids,
@@ -65,7 +67,7 @@ def train(pipeline_name, dev_mode):
 
 
 def evaluate(pipeline_name, dev_mode, chunk_size):
-    logger.info('evaluating')
+    LOGGER.info('evaluating')
 
     annotations = pd.read_csv(PARAMS.annotations_filepath)
 
@@ -78,13 +80,15 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
     if dev_mode:
         valid_img_ids = valid_img_ids[:20]
 
+    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
+
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(valid_img_ids, pipeline, chunk_size)
 
     LOGGER.info('Calculating mean average precision')
     mean_average_precision = map_evaluation(annotations, prediction)
     LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
-    ctx.channel_send('MAP', 0, mean_average_precision)
+    CTX.ctx.channel_send('MAP', 0, mean_average_precision)
 
 
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
@@ -92,6 +96,8 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
 
     n_ids = 100 if dev_mode else None
     test_img_ids = get_img_ids_from_folder(PARAMS.test_imgs_dir, n_ids=n_ids)
+
+    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.test_imgs_dir
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(test_img_ids, pipeline, chunk_size)
@@ -129,14 +135,11 @@ def _generate_prediction(img_ids, pipeline):
     pipeline.clean_cache()
     output = pipeline.transform(data)
     pipeline.clean_cache()
-    y_pred = output['y_pred']
-
-    prediction = create_annotations(img_ids, y_pred)
-    return prediction
+    return output['y_pred']
 
 
 def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
-    prediction = []
+    predictions = []
     for img_ids_chunk in generate_data_frame_chunks(img_ids, chunk_size):
         data = {'input': {'img_ids': img_ids_chunk
                           },
@@ -146,24 +149,7 @@ def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
         pipeline.clean_cache()
         output = pipeline.transform(data)
         pipeline.clean_cache()
-        y_pred = output['y_pred']
+        predictions.append(output['y_pred'])
 
-        prediction_chunk = create_annotations(img_ids_chunk, y_pred)
-        prediction.extend(prediction_chunk)
-
-    return prediction
-
-
-def _get_scoring_model_data(data_dir, meta, num_training_examples, random_seed):
-    annotation_file_path = os.path.join(data_dir, 'train', "annotation.json")
-    coco = COCO(annotation_file_path)
-    meta = meta.sample(num_training_examples, random_state=random_seed)
-    annotations = []
-    for image_id in meta['ImageId'].values:
-        image_annotations = {}
-        for category_id in CATEGORY_IDS:
-            annotation_ids = coco.getAnnIds(imgIds=image_id, catIds=category_id)
-            category_annotations = coco.loadAnns(annotation_ids)
-            image_annotations[category_id] = category_annotations
-        annotations.append(image_annotations)
-    return meta, annotations
+    predictions = pd.concat(predictions)
+    return predictions

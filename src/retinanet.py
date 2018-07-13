@@ -5,6 +5,8 @@ from torch.autograd import Variable
 from torchvision import models
 from math import sqrt
 
+from steppy.base import BaseTransformer
+
 
 class FPN(nn.Module):
     def __init__(self, encoder_depth, pretrained=True):
@@ -235,7 +237,7 @@ class RetinaLoss(nn.Module):
         return loss
 
 
-class DataEncoder(object):
+class BaseDataHandler():
     def __init__(self):
         self.anchor_areas = [32*32., 64*64., 128*128., 256*256., 512*512.]  # p3 -> p7
         self.aspect_ratios = [1/2., 1/1., 2/1.]
@@ -285,6 +287,9 @@ class DataEncoder(object):
             boxes.append(box.view(-1,4))
         return torch.cat(boxes, 0)
 
+
+class DataEncoder(BaseDataHandler):
+
     def encode(self, boxes, labels, input_size):
         """Encode target bounding boxes and class labels.
 
@@ -321,6 +326,15 @@ class DataEncoder(object):
         ignore = (max_ious>0.4) & (max_ious<0.5)  # ignore ious between [0.4,0.5]
         cls_targets[ignore] = -1  # for now just mark ignored to -1
         return loc_targets, cls_targets
+
+
+class DataDecoder(BaseDataHandler, BaseTransformer):
+
+    def transform(self, box_predictions, class_predictions, target_sizes):
+        results = []
+        for bboxes, class_scores, target_size in zip(box_predictions, class_predictions, target_sizes):
+            results.append(self.decode(bboxes, class_scores, target_size))
+        return {'results': results}
 
     def decode(self, loc_preds, cls_preds, input_size):
         """Decode outputs back to bouding box locations and class labels.

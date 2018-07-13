@@ -38,7 +38,7 @@ SOLUTION_CONFIG = AttrDict({
                                   'h': params.image_h,
                                   'w': params.image_w,
                                   'pad_method': params.pad_method,
-                                  'images_dir': params.train_imgs_dir,
+                                  'images_dir': None,
                                   'sample_size': params.training_sample_size
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
@@ -106,5 +106,10 @@ SOLUTION_CONFIG = AttrDict({
             'early_stopping': {'patience': params.patience,
                                'minimize': not params.validate_with_map},
         },
+    },
+    'postprocessing': {
+        'prediction_formatter': {
+            'image_size': (256, 256)
+        }
     },
 })
