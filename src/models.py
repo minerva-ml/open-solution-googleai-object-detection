@@ -120,14 +120,15 @@ class Retina(ModelParallel):
             else:
                 X = Variable(X, volatile=True)
 
-            boxes_batch, labels_batch = self.model(X)
+            output = self.model(X)
+            boxes_batch, labels_batch = output[:, :, :4].data.cpu(), output[:, :, 4:].data.cpu()
             boxes.extend([box for box in boxes_batch])
             labels.extend([label for label in labels_batch])
             if batch_id == steps:
                 break
         self.model.train()
-        outputs = {'boxes_prediction': boxes,
-                   'labels_prediction': labels}
+        outputs = {'box_predictions': boxes,
+                   'class_predictions': labels}
         return outputs
 
     def set_model(self):
@@ -160,6 +161,6 @@ def callbacks(callbacks_config):
     early_stopping = EarlyStopping(**callbacks_config['early_stopping'])
 
     return CallbackList(
-        callbacks=[experiment_timing, training_monitor, validation_monitor,
+        callbacks=[experiment_timing, training_monitor, #validation_monitor,
                    model_checkpoints, lr_scheduler, early_stopping, neptune_monitor,
                    ])

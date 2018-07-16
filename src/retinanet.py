@@ -308,7 +308,7 @@ class DataEncoder(BaseDataHandler):
           loc_targets: (tensor) encoded bounding boxes, sized [#anchors,4].
           cls_targets: (tensor) encoded class labels, sized [#anchors,].
         """
-        input_size = torch.Tensor([input_size,input_size]) if isinstance(input_size, int) \
+        input_size = torch.Tensor([input_size, input_size]) if isinstance(input_size, int) \
                      else torch.Tensor(input_size)
         anchor_boxes = self._get_anchor_boxes(input_size)
         boxes = change_box_order(boxes, 'xyxy2xywh')
@@ -329,11 +329,14 @@ class DataEncoder(BaseDataHandler):
 
 
 class DataDecoder(BaseDataHandler, BaseTransformer):
+    def __init__(self, input_size):
+        super().__init__()
+        self.input_size = input_size
 
-    def transform(self, box_predictions, class_predictions, target_sizes):
+    def transform(self, box_predictions, class_predictions):
         results = []
-        for bboxes, class_scores, target_size in zip(box_predictions, class_predictions, target_sizes):
-            results.append(self.decode(bboxes, class_scores, target_size))
+        for bboxes, class_scores in zip(box_predictions, class_predictions):
+            results.append(self.decode(bboxes, class_scores, self.input_size))
         return {'results': results}
 
     def decode(self, loc_preds, cls_preds, input_size):
