@@ -77,12 +77,12 @@ def preprocessing_generator(config, is_train):
 
 def postprocessing(model, label_encoder, config):
     label_decoder = Step(name='label_decoder',
-                         transformer=GoogleAiLabelDecoder(label_encoder.transformer),
-                         input_steps=[model],
+                         transformer=GoogleAiLabelDecoder(),
+                         input_steps=[label_encoder, ],
                          experiment_directory=config.env.cache_dirpath)
 
     decoder = Step(name='decoder',
-                   transformer=DataDecoder(),
+                   transformer=DataDecoder(**config.postprocessing.data_decoder),
                    input_steps=[model, ],
                    experiment_directory=config.env.cache_dirpath)
 

@@ -163,8 +163,7 @@ class ImageDetectionLoader(BaseTransformer):
                                    train_mode=False,
                                    image_transform=self.image_transform)
 
-            datagen = DataLoader(dataset, **loader_params,
-                                 collate_fn=None)
+            datagen = DataLoader(dataset, **loader_params)
         steps = len(datagen)
         return datagen, steps
 
