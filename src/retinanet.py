@@ -159,7 +159,7 @@ class RetinaLoss(nn.Module):
         super().__init__()
         self.num_classes = num_classes
 
-    def focal_loss(self, x, y):
+    def focal_loss(self, x, y, labels):
         """Focal loss.
 
         Args:
@@ -178,6 +178,7 @@ class RetinaLoss(nn.Module):
 
         p = x.sigmoid()
         pt = p*t + (1-p)*(1-t)         # pt = p if t > 0 else 1-p
+        pt = labels*pt + (1-labels)*torch.ones_like(pt) # pt if label is relevant, else 1 (pt==1 means, that class does not contribute to loss)
         w = alpha*t + (1-alpha)*(1-t)  # w = alpha if t > 0 else 1-alpha
         w = w * (1-pt).pow(gamma)
         return F.binary_cross_entropy_with_logits(x, t, w, size_average=False)
@@ -218,7 +219,8 @@ class RetinaLoss(nn.Module):
           (tensor) loss = SmoothL1Loss(loc_preds, loc_targets) + FocalLoss(cls_preds, cls_targets).
         """
         loc_preds, cls_preds = output[:, :, :4], output[:, :, 4:]
-        loc_targets, cls_targets = target[:, :, :4], target[:, :, 4].long()
+        loc_targets, cls_targets = target[:, :-self.num_classes, :4], target[:, :-self.num_classes, 4].long()
+        human_labels = target[:, -self.num_classes:, 0]
 
         pos = cls_targets > 0  # [N,#anchors]
         num_pos = pos.data.long().sum()
@@ -232,7 +234,7 @@ class RetinaLoss(nn.Module):
         masked_cls_preds = cls_preds[mask].view(-1,self.num_classes)
 
         loc_loss = F.smooth_l1_loss(masked_loc_preds, masked_loc_targets, size_average=False)
-        cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg])
+        cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg], human_labels)
         loss = (loc_loss+cls_loss)/num_pos
         return loss
 
