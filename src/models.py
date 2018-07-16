@@ -120,9 +120,11 @@ class Retina(ModelParallel):
             else:
                 X = Variable(X, volatile=True)
 
-            boxes_batch, labels_batch = self.model(X)
+            output = self.model(X)
+            boxes_batch, labels_batch = output[:, :, :4], output[:, :, 4:]
             boxes.extend([box for box in boxes_batch])
             labels.extend([label for label in labels_batch])
+
             if batch_id == steps:
                 break
         self.model.train()
