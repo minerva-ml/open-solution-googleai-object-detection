@@ -1,9 +1,7 @@
 # Google AI Open Images - Object Detection Track: Open Solution
 
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/neptune-ml/open-solution-googleai-object-detection/blob/master/LICENSE)
-[![GitHub last commit](https://img.shields.io/github/last-commit/google/skia.svg)](https://github.com/neptune-ml/open-solution-googleai-object-detection)
-[![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/cdnjs/cdnjs.svg)](https://github.com/neptune-ml/open-solution-googleai-object-detection)
-[![GitHub issues](https://img.shields.io/github/issues/badges/shields.svg)](https://github.com/neptune-ml/open-solution-googleai-object-detection)
+[![Join the chat at https://gitter.im/neptune-ml/open-solution-googleai-object-detection](https://badges.gitter.im/neptune-ml/open-solution-googleai-object-detection.svg)](https://gitter.im/neptune-ml/open-solution-googleai-object-detection?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 This is an open solution to the [Google AI Open Images - Object Detection Track](https://www.kaggle.com/c/google-ai-open-images-object-detection-track) :smiley:
 
