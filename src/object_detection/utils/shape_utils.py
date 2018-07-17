@@ -190,7 +190,7 @@ def static_or_dynamic_map_fn(fn, elems, dtype=None,
       if (not elem_shape or not elem_shape[0]
           or elem_shape[0] != elem_shapes[0][0]):
         return tf.map_fn(fn, elems, dtype, parallel_iterations, back_prop)
-    arg_tuples = zip(*[tf.unstack(elem) for elem in elems])
+    arg_tuples = list(zip(*[tf.unstack(elem) for elem in elems]))
     outputs = [fn(arg_tuple) for arg_tuple in arg_tuples]
   else:
     if not isinstance(elems, tf.Tensor):

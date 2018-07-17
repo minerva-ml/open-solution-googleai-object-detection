@@ -757,7 +757,7 @@ class OpsTestNormalizeToTarget(tf.test.TestCase):
     inputs = tf.random_uniform([5, 10, 12, 3])
     target_norm_value = 4.0
     dim = 10
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
         'dim must be non-negative but smaller than the input rank.'):
       ops.normalize_to_target(inputs, target_norm_value, dim)
@@ -766,7 +766,7 @@ class OpsTestNormalizeToTarget(tf.test.TestCase):
     inputs = tf.random_uniform([5, 10, 12, 3])
     target_norm_value = [4.0, 4.0]
     dim = 3
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'target_norm_value must be a float or a list of floats'):
       ops.normalize_to_target(inputs, target_norm_value, dim)
 
@@ -815,7 +815,7 @@ class OpsTestPositionSensitiveCropRegions(tf.test.TestCase):
     image_shape = [1, 3, 2, 6]
 
     # First channel is 1's, second channel is 2's, etc.
-    image = tf.constant(range(1, 3 * 2 + 1) * 6, dtype=tf.float32,
+    image = tf.constant(list(range(1, 3 * 2 + 1)) * 6, dtype=tf.float32,
                         shape=image_shape)
     boxes = tf.random_uniform((2, 4))
     box_ind = tf.constant([0, 0], dtype=tf.int32)
@@ -838,7 +838,7 @@ class OpsTestPositionSensitiveCropRegions(tf.test.TestCase):
     image_shape = [1, 3, 3, 4]
     crop_size = [2, 2]
 
-    image = tf.constant(range(1, 3 * 3 + 1), dtype=tf.float32,
+    image = tf.constant(list(range(1, 3 * 3 + 1)), dtype=tf.float32,
                         shape=[1, 3, 3, 1])
     tiled_image = tf.tile(image, [1, 1, 1, image_shape[3]])
     boxes = tf.random_uniform((3, 4))
@@ -891,7 +891,7 @@ class OpsTestPositionSensitiveCropRegions(tf.test.TestCase):
     boxes = tf.constant([[0, 0, 1, 1]], dtype=tf.float32)
     box_ind = tf.constant([0], dtype=tf.int32)
 
-    with self.assertRaisesRegexp(ValueError, 'num_spatial_bins should be >= 1'):
+    with self.assertRaisesRegex(ValueError, 'num_spatial_bins should be >= 1'):
       ops.position_sensitive_crop_regions(
           image, boxes, box_ind, crop_size, num_spatial_bins, global_pool=True)
 
@@ -904,7 +904,7 @@ class OpsTestPositionSensitiveCropRegions(tf.test.TestCase):
     boxes = tf.constant([[0, 0, 1, 1]], dtype=tf.float32)
     box_ind = tf.constant([0], dtype=tf.int32)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'crop_size should be divisible by num_spatial_bins'):
       ops.position_sensitive_crop_regions(
           image, boxes, box_ind, crop_size, num_spatial_bins, global_pool=True)
@@ -918,7 +918,7 @@ class OpsTestPositionSensitiveCropRegions(tf.test.TestCase):
     boxes = tf.constant([[0, 0, 1, 1]], dtype=tf.float32)
     box_ind = tf.constant([0], dtype=tf.int32)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Dimension size must be evenly divisible by 4 but is 5'):
       ops.position_sensitive_crop_regions(
           image, boxes, box_ind, crop_size, num_spatial_bins, global_pool=True)
@@ -929,7 +929,7 @@ class OpsTestPositionSensitiveCropRegions(tf.test.TestCase):
     num_boxes = 2
 
     # First channel is 1's, second channel is 2's, etc.
-    image = tf.constant(range(1, 3 * 2 + 1) * 6, dtype=tf.float32,
+    image = tf.constant(list(range(1, 3 * 2 + 1)) * 6, dtype=tf.float32,
                         shape=image_shape)
     boxes = tf.random_uniform((num_boxes, 4))
     box_ind = tf.constant([0, 0], dtype=tf.int32)
@@ -967,7 +967,7 @@ class OpsTestPositionSensitiveCropRegions(tf.test.TestCase):
     image_shape = [2, 2, 2, 4]
     crop_size = [2, 2]
 
-    image = tf.constant(range(1, 2 * 2 * 4  + 1) * 2, dtype=tf.float32,
+    image = tf.constant(list(range(1, 2 * 2 * 4  + 1)) * 2, dtype=tf.float32,
                         shape=image_shape)
 
     # First box contains whole image, and second box contains only first row.
@@ -1025,7 +1025,7 @@ class OpsTestPositionSensitiveCropRegions(tf.test.TestCase):
     num_boxes = 2
 
     # First channel is 1's, second channel is 2's, etc.
-    image = tf.constant(range(1, 3 * 2 + 1) * 6, dtype=tf.float32,
+    image = tf.constant(list(range(1, 3 * 2 + 1)) * 6, dtype=tf.float32,
                         shape=image_shape)
     boxes = tf.random_uniform((num_boxes, 4))
     box_ind = tf.constant([0, 0], dtype=tf.int32)
@@ -1077,7 +1077,7 @@ class OpsTestPositionSensitiveCropRegions(tf.test.TestCase):
     boxes = tf.constant([[0, 0, 1, 1]], dtype=tf.float32)
     box_ind = tf.constant([0], dtype=tf.int32)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Only support square bin crop size for now.'):
       ops.position_sensitive_crop_regions(
           image, boxes, box_ind, crop_size, num_spatial_bins, global_pool=False)

@@ -7,7 +7,7 @@ import json
 from .pipeline_config import SOLUTION_CONFIG, SEED, ID_COLUMN
 from .pipelines import PIPELINES
 from .utils import init_logger, set_seed, get_img_ids_from_folder, competition_metric_evaluation, \
-    generate_data_frame_chunks, NeptuneContext
+    generate_data_frame_chunks, NeptuneContext, submission_formatting
 
 LOGGER = init_logger()
 CTX = NeptuneContext().ctx
@@ -85,16 +85,20 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(valid_img_ids, pipeline, chunk_size)
 
+    LOGGER.info('Formatting prediction')
+    prediction = submission_formatting(prediction)
     prediction_filepath = os.path.join(PARAMS.experiment_dir, 'evaluation_prediction.csv')
     prediction.to_csv(prediction_filepath, index=None)
 
     LOGGER.info('Calculating mean average precision')
     validation_annotations = annotations[annotations[ID_COLUMN].isin(valid_img_ids)]
-    validation_annotations_human_labels = annotations_human_labels[annotations[ID_COLUMN].isin(valid_img_ids)]
+    validation_annotations_human_labels = annotations_human_labels[
+        annotations_human_labels[ID_COLUMN].isin(valid_img_ids)]
     validation_annotations_filepath = os.path.join(PARAMS.experiment_dir, 'validation_annotations.csv')
     validation_annotations.to_csv(validation_annotations_filepath, index=None)
     validation_annotations_human_labels_filepath = os.path.join(PARAMS.experiment_dir,
                                                                 'validation_annotations_human_labels.csv')
+
     validation_annotations_human_labels.to_csv(validation_annotations_human_labels_filepath, index=None)
     metrics_filepath = os.path.join(PARAMS.experiment_dir, 'validation_metrics')
     mean_average_precision = competition_metric_evaluation(annotation_filepath=validation_annotations_filepath,

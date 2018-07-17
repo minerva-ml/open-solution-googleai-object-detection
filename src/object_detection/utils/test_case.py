@@ -45,7 +45,7 @@ class TestCase(tf.test.TestCase):
       sess.run([tf.global_variables_initializer(), tf.tables_initializer(),
                 tf.local_variables_initializer()])
       materialized_results = sess.run(tpu_computation,
-                                      feed_dict=dict(zip(placeholders, inputs)))
+                                      feed_dict=dict(list(zip(placeholders, inputs))))
       sess.run(tpu.shutdown_system())
       if (len(materialized_results) == 1
           and (isinstance(materialized_results, list)
@@ -70,8 +70,8 @@ class TestCase(tf.test.TestCase):
       results = graph_fn(*placeholders)
       sess.run([tf.global_variables_initializer(), tf.tables_initializer(),
                 tf.local_variables_initializer()])
-      materialized_results = sess.run(results, feed_dict=dict(zip(placeholders,
-                                                                  inputs)))
+      materialized_results = sess.run(results, feed_dict=dict(list(zip(placeholders,
+                                                                  inputs))))
       if (len(materialized_results) == 1
           and (isinstance(materialized_results, list)
                or isinstance(materialized_results, tuple))):

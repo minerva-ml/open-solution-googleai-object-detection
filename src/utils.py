@@ -10,6 +10,7 @@ import subprocess
 import glob
 from deepsense import neptune
 import numpy as np
+import pandas as pd
 import torch
 import yaml
 from PIL import Image
@@ -269,43 +270,72 @@ def competition_metric_evaluation(annotation_filepath,
                                   prediction_filepath,
                                   label_hierarchy_filepath,
                                   metrics_filepath):
-    create_env_vars_cmd = """
-    HIERARCHY_FILE={0} 
-    BOUNDING_BOXES={1}
-    IMAGE_LABELS={2}
-    INPUT_PREDICTIONS={3}
-    OUTPUT_METRICS={4}
-    """.format(label_hierarchy_filepath,
-               annotation_filepath,
-               annotations_human_labels_filepath,
-               prediction_filepath,
-               metrics_filepath)
+    expanded_annotations_filepath = annotation_filepath.replace('.csv', '_expanded.csv')
+    expand_annotations_cmd = ["python src/object_detection/dataset_tools/oid_hierarchical_labels_expansion.py",
+                              "--json_hierarchy_file={}".format(label_hierarchy_filepath),
+                              "--input_annotations={}".format(annotation_filepath),
+                              "--output_annotations={}".format(expanded_annotations_filepath),
+                              "--annotation_type=1"]
+    expand_annotations_cmd = ' '.join(expand_annotations_cmd)
 
-    expand_labels_cmd = """
-    python src/object_detection/dataset_tools/oid_hierarchical_labels_expansion.py \
-        --json_hierarchy_file=${HIERARCHY_FILE} \
-        --input_annotations=${BOUNDING_BOXES}.csv \
-        --output_annotations=${BOUNDING_BOXES}_expanded.csv \
-        --annotation_type=1
-                        
-    python src/object_detection/dataset_tools/oid_hierarchical_labels_expansion.py \
-        --json_hierarchy_file=${HIERARCHY_FILE} \
-        --input_annotations=${IMAGE_LABELS}.csv \
-        --output_annotations=${IMAGE_LABELS}_expanded.csv \
-        --annotation_type=2
-    """
+    expanded_annotations_human_labels_filepath = annotations_human_labels_filepath.replace('.csv', '_expanded.csv')
+    expand_annotations_human_labels_cmd = [
+        "python src/object_detection/dataset_tools/oid_hierarchical_labels_expansion.py",
+        "--json_hierarchy_file={}".format(label_hierarchy_filepath),
+        "--input_annotations={}".format(annotations_human_labels_filepath),
+        "--output_annotations={}".format(
+            expanded_annotations_human_labels_filepath),
+        "--annotation_type=2"]
+    expand_annotations_human_labels_cmd = ' '.join(expand_annotations_human_labels_cmd)
 
-    run_evaluation_cmd = """
-    python src/object_detection/metrics/oid_od_challenge_evaluation.py \
-        --input_annotations_boxes=${BOUNDING_BOXES}_expanded.csv \
-        --input_annotations_labels=${IMAGE_LABELS}_expanded.csv \
-        --input_class_labelmap=src/object_detection/data/oid_object_detection_challenge_500_label_map.pbtxt \
-        --input_predictions=${INPUT_PREDICTIONS} \
-        --output_metrics=${OUTPUT_METRICS} 
-    """
+    run_evaluation_cmd = ["python src/object_detection/metrics/oid_od_challenge_evaluation.py",
+                          "--input_annotations_boxes={}".format(expanded_annotations_filepath),
+                          "--input_annotations_labels={}".format(expanded_annotations_human_labels_filepath),
+                          "--input_class_labelmap=src/object_detection/data/oid_object_detection_challenge_500_label_map.pbtxt",
+                          "--input_predictions={}".format(prediction_filepath),
+                          "--output_metrics={}".format(metrics_filepath)]
+    run_evaluation_cmd = ' '.join(run_evaluation_cmd)
 
-    subprocess.call(create_env_vars_cmd, shell=True)
-    subprocess.call(expand_labels_cmd, shell=True)
+    subprocess.call(expand_annotations_cmd, shell=True)
+    subprocess.call(expand_annotations_human_labels_cmd, shell=True)
     subprocess.call(run_evaluation_cmd, shell=True)
 
-    return None
+    map_score = calculate_map(metrics_filepath)
+    return map_score
+
+
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+
+def submission_formatting(submission):
+    prediction_formatted = {}
+    for i, row in submission.iterrows():
+        image_id = row.ImageId
+        prediction = row.PredictionString
+        for pred in chunker(prediction.split(), 5):
+            label, x_min, y_min, w, h = pred
+            x_max = float(x_min) + float(h)
+            y_max = float(y_min) + float(w)
+            prediction_formatted.setdefault('ImageID', []).append(image_id)
+            prediction_formatted.setdefault('LabelName', []).append(label)
+            prediction_formatted.setdefault('XMin', []).append(x_min)
+            prediction_formatted.setdefault('YMin', []).append(y_min)
+            prediction_formatted.setdefault('XMax', []).append(x_max)
+            prediction_formatted.setdefault('YMax', []).append(y_max)
+            prediction_formatted.setdefault('Score', []).append(1.0)
+    prediction_formatted = pd.DataFrame(prediction_formatted)
+    return prediction_formatted
+
+
+def calculate_map(metrics_filepath):
+    with open(metrics_filepath) as f:
+        metrics = f.read().splitlines()
+
+    label_scores = []
+    for label_score in metrics:
+        score = float(label_score.split(',')[1])
+        if np.isnan(score):
+            score = 0.0
+        label_scores.append(score)
+    return np.mean(label_scores)

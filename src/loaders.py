@@ -162,8 +162,8 @@ class ImageDetectionLoader(BaseTransformer):
                                    target_encoder=self.target_encoder,
                                    train_mode=False,
                                    image_transform=self.image_transform)
-            datagen = DataLoader(dataset, **loader_params)
 
+            datagen = DataLoader(dataset, **loader_params)
         steps = len(datagen)
         return datagen, steps
 

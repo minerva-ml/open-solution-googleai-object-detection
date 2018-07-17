@@ -767,10 +767,10 @@ def merge_boxes_with_multiple_labels(boxes, classes, num_classes):
       if box not in box_to_class_indices:
         box_to_class_indices[box] = [box_index, np.zeros([num_classes])]
       box_to_class_indices[box][1][class_index] = 1
-    merged_boxes = np.vstack(box_to_class_indices.keys()).astype(np.float32)
-    class_encodings = [item[1] for item in box_to_class_indices.values()]
+    merged_boxes = np.vstack(list(box_to_class_indices.keys())).astype(np.float32)
+    class_encodings = [item[1] for item in list(box_to_class_indices.values())]
     class_encodings = np.vstack(class_encodings).astype(np.int32)
-    merged_box_indices = [item[0] for item in box_to_class_indices.values()]
+    merged_box_indices = [item[0] for item in list(box_to_class_indices.values())]
     merged_box_indices = np.array(merged_box_indices).astype(np.int32)
     return merged_boxes, class_encodings, merged_box_indices
 

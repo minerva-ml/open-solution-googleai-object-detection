@@ -96,7 +96,10 @@ SOLUTION_CONFIG = AttrDict({
     },
     'postprocessing': {
         'prediction_formatter': {
-            'image_size': (256, 256)
+            'image_size': (256, 256),
+        },
+        'data_decoder': {
+            'input_size': (params.image_h, params.image_w)
         }
     },
 })

@@ -39,7 +39,7 @@ from object_detection.utils import metrics
 from object_detection.utils import per_image_evaluation
 
 
-class DetectionEvaluator(object):
+class DetectionEvaluator(object, metaclass=ABCMeta):
   """Interface for object detection evalution classes.
 
   Example usage of the Evaluator:
@@ -56,7 +56,6 @@ class DetectionEvaluator(object):
 
   metrics_dict = evaluator.evaluate()
   """
-  __metaclass__ = ABCMeta
 
   def __init__(self, categories):
     """Constructor.
@@ -191,7 +190,7 @@ class ObjectDetectionEvaluator(DetectionEvaluator):
     # (unless there are no annotations for the groundtruth on this image)
     # use values from the dictionary or insert None otherwise.
     if (standard_fields.InputDataFields.groundtruth_difficult in
-        groundtruth_dict.keys() and
+        list(groundtruth_dict.keys()) and
         (groundtruth_dict[standard_fields.InputDataFields.groundtruth_difficult]
          .size or not groundtruth_classes.size)):
       groundtruth_difficult = groundtruth_dict[
@@ -449,7 +448,7 @@ class OpenImagesDetectionEvaluator(ObjectDetectionEvaluator):
     # (unless there are no annotations for the groundtruth on this image)
     # use values from the dictionary or insert None otherwise.
     if (standard_fields.InputDataFields.groundtruth_group_of in
-        groundtruth_dict.keys() and
+        list(groundtruth_dict.keys()) and
         (groundtruth_dict[standard_fields.InputDataFields.groundtruth_group_of]
          .size or not groundtruth_classes.size)):
       groundtruth_group_of = groundtruth_dict[
@@ -839,9 +838,9 @@ class ObjectDetectionEvaluation(object):
       if self.use_weighted_mean_ap:
         all_scores = np.append(all_scores, scores)
         all_tp_fp_labels = np.append(all_tp_fp_labels, tp_fp_labels)
-      print 'Scores and tpfp per class label: {}'.format(class_index)
-      print tp_fp_labels
-      print scores
+      print('Scores and tpfp per class label: {}'.format(class_index))
+      print(tp_fp_labels)
+      print(scores)
       precision, recall = metrics.compute_precision_recall(
           scores, tp_fp_labels, self.num_gt_instances_per_class[class_index])
       self.precisions_per_class.append(precision)

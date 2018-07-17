@@ -208,7 +208,7 @@ class StaticOrDynamicMapFnTest(tf.test.TestCase):
       return input_tensor
     input_tensor1 = tf.constant([1])
     input_tensor2 = tf.constant([2])
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, '`elems` must be a Tensor or list of Tensors.'):
       shape_utils.static_or_dynamic_map_fn(
           fn, [input_tensor1, [input_tensor2]], dtype=tf.float32)
@@ -220,7 +220,7 @@ class CheckMinImageShapeTest(tf.test.TestCase):
     input_tensor = tf.constant(np.zeros([1, 42, 42, 3]))
     _ = shape_utils.check_min_image_dim(33, input_tensor)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'image size must be >= 64 in both height and width.'):
       _ = shape_utils.check_min_image_dim(64, input_tensor)
 
@@ -241,7 +241,7 @@ class AssertShapeEqualTest(tf.test.TestCase):
   def test_unequal_static_shape_raises_exception(self):
     shape_a = tf.constant(np.zeros([4, 2, 2, 1]))
     shape_b = tf.constant(np.zeros([4, 2, 3, 1]))
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Unequal shapes'):
       shape_utils.assert_shape_equal(
           shape_utils.combined_static_and_dynamic_shape(shape_a),
@@ -280,7 +280,7 @@ class AssertShapeEqualTest(tf.test.TestCase):
   def test_unequal_static_shape_along_first_dim_raises_exception(self):
     shape_a = tf.constant(np.zeros([4, 2, 2, 1]))
     shape_b = tf.constant(np.zeros([6, 2, 3, 1]))
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Unequal first dimension'):
       shape_utils.assert_shape_equal_along_first_dimension(
           shape_utils.combined_static_and_dynamic_shape(shape_a),

@@ -57,7 +57,7 @@ class BoxList(object):
 
   def get_extra_fields(self):
     """Return all non-box fields."""
-    return [k for k in self.data.keys() if k != 'boxes']
+    return [k for k in list(self.data.keys()) if k != 'boxes']
 
   def has_field(self, field):
     return field in self.data
