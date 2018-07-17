@@ -234,7 +234,8 @@ class RetinaLoss(nn.Module):
         masked_cls_preds = cls_preds[mask].view(-1,self.num_classes)
 
         loc_loss = F.smooth_l1_loss(masked_loc_preds, masked_loc_targets, size_average=False)
-        cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg], human_labels)
+        masked_human_labels = human_labels.unsqueeze(1).expand_as(cls_preds)[mask].view(-1, self.num_classes)
+        cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg], masked_human_labels)
         loss = (loc_loss+cls_loss)/num_pos
         return loss
 

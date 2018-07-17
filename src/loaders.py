@@ -7,6 +7,7 @@ from torch.utils.data.sampler import Sampler
 import torchvision.transforms as transforms
 from PIL import Image
 from steppy.base import BaseTransformer
+import numpy as np
 
 from .retinanet import DataEncoder
 from .pipeline_config import MEAN, STD
@@ -88,7 +89,7 @@ class ImageDetectionDataset(Dataset):
     def get_human_labels(self, annotations):
         labels = list(annotations['LabelName'].values)
         labels_ = torch.zeros(self.num_classes)
-        labels_[labels] = 1
+        labels_[[int(label) for label in labels]] = 1
         return labels_,
 
     def collate_fn(self, batch):
@@ -116,8 +117,16 @@ class ImageDetectionDataset(Dataset):
         bbox_targets, clf_targets = torch.stack(bbox_targets), torch.stack(clf_targets)
         clf_targets = clf_targets.unsqueeze(-1)
         targets = torch.cat((bbox_targets, clf_targets), 2)
-        #TODO: incorporate labels into batch
+
+        targets = self.join_target_with_labels(targets, human_labels)
         return inputs, targets
+
+    def join_target_with_labels(self, targets, human_labels):
+        human_labels = torch.stack(human_labels)
+        human_labels = human_labels.unsqueeze(-1)
+        human_labels = torch.cat([human_labels,]*targets.size(-1), dim=-1)
+        targets = torch.cat([targets, human_labels], dim=1)
+        return targets
 
 
 class ImageDetectionLoader(BaseTransformer):
