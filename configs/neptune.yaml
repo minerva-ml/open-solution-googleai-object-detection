@@ -30,6 +30,7 @@ parameters:
   bbox_hierarchy_filepath: ''
   valid_ids_filepath: ''
   experiment_dir:  ''
+  class_mappings_filepath: ''
 
 # Execution
   clean_experiment_directory_before_training: 1
