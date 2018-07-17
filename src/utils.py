@@ -18,6 +18,9 @@ from attrdict import AttrDict
 from pycocotools import mask as cocomask
 from tqdm import tqdm
 from steppy.base import BaseTransformer
+import pathlib
+
+neptune_config_path = pathlib.Path(__file__).resolve().parents[1] / 'configs' / 'neptune_config_local.yaml'
 
 
 # Alex Martelli's 'Borg'
@@ -30,11 +33,12 @@ class _Borg:
 
 
 class NeptuneContext(_Borg):
-    def __init__(self, fallback_file='configs/neptune_local.yaml'):
+    def __init__(self, fallback_file=neptune_config_path):
         _Borg.__init__(self)
 
         self.ctx = neptune.Context()
         self.fallback_file = fallback_file
+        print(self.fallback_file)
         self.params = self._read_params()
         self.numeric_channel = neptune.ChannelType.NUMERIC
         self.image_channel = neptune.ChannelType.IMAGE
@@ -339,3 +343,31 @@ def calculate_map(metrics_filepath):
             score = 0.0
         label_scores.append(score)
     return np.mean(label_scores)
+
+
+def get_class_mappings(mappings_file):
+    codes2names = pd.read_csv(mappings_file, header=None).set_index(0).to_dict()[1]
+    names2codes = {v: k for k, v in codes2names.items()}
+    return codes2names, names2codes
+
+
+def reduce_number_of_classes(annotations_df, list_of_desired_classes, mappings_file):
+    """
+    :param annotations_df:
+    :param list_of_desired_classes: List of classes from OIv4 either names or codes
+    :param mappings_file: Mapping file (codes two names csv)
+    :return:
+    """
+    codes2names, names2codes = get_class_mappings(mappings_file)
+    if not all([cls.startswith('/') for cls in list_of_desired_classes]):
+        list_of_desired_classes = [names2codes.get(cls_name, 'notfound') for cls_name in list_of_desired_classes]
+
+    assert all([cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are " \
+                                                                                   "invalid "
+    # LOGGER.info("Training on a subset of classes: {}".format([codes2names[i] for i in list_of_desired_classes]))
+    subset_df = annotations_df[annotations_df.LabelName.isin(list_of_desired_classes)]
+
+    assert not subset_df.empty, "There is not data left after filtering for {} classes. This can happen when a small " \
+                                "sample is used"
+
+    return subset_df
