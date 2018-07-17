@@ -3,17 +3,15 @@ import shutil
 
 import pandas as pd
 import json
-
-from .pipeline_config import SOLUTION_CONFIG, SEED, ID_COLUMN
+from .pipeline_config import SOLUTION_CONFIG, SEED, ID_COLUMN, DESIRED_CLASS_SUBSET
 from .pipelines import PIPELINES
 from .utils import init_logger, set_seed, get_img_ids_from_folder, competition_metric_evaluation, \
-    generate_data_frame_chunks, NeptuneContext, submission_formatting
+    generate_data_frame_chunks, NeptuneContext, submission_formatting, reduce_number_of_classes
 
 LOGGER = init_logger()
 CTX = NeptuneContext().ctx
 PARAMS = CTX.params
 set_seed(SEED)
-
 
 class PipelineManager:
     def train(self, pipeline_name, dev_mode):
@@ -36,6 +34,16 @@ def train(pipeline_name, dev_mode):
 
     annotations = pd.read_csv(PARAMS.annotations_filepath)
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
+
+    if DESIRED_CLASS_SUBSET:
+        LOGGER.info("Training on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
+        annotations = reduce_number_of_classes(annotations,
+                                               DESIRED_CLASS_SUBSET,
+                                               PARAMS.class_mappings_filepath)
+
+        annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
+                                                            DESIRED_CLASS_SUBSET,
+                                                            PARAMS.class_mappings_filepath)
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath).sample(PARAMS.validation_sample_size, random_state=SEED)
@@ -70,6 +78,16 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 
     annotations = pd.read_csv(PARAMS.annotations_filepath)
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
+
+    if DESIRED_CLASS_SUBSET:
+        LOGGER.info("Evaluating on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
+        annotations = reduce_number_of_classes(annotations,
+                                               DESIRED_CLASS_SUBSET,
+                                               PARAMS.class_mappings_filepath)
+
+        annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
+                                                            DESIRED_CLASS_SUBSET,
+                                                            PARAMS.class_mappings_filepath)
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
