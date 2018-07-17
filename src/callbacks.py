@@ -12,8 +12,8 @@ from toolkit.pytorch_transformers.callbacks import NeptuneMonitor, ValidationMon
 from steppy.base import IdentityOperation
 
 from . import postprocessing as post
-from .steppy.base import Step
-from .utils import get_logger, softmax, map_evaluation, create_annotations, make_apply_transformer
+from .steppy_dev.base import Step
+from .utils import get_logger, softmax, make_apply_transformer
 
 logger = get_logger()
 
