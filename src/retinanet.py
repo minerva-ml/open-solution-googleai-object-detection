@@ -159,7 +159,30 @@ class RetinaLoss(nn.Module):
         super().__init__()
         self.num_classes = num_classes
 
-    def focal_loss(self, x, y, labels):
+    def focal_loss(self, x, y):
+        """Focal loss.
+
+        Args:
+          x: (tensor) sized [N,D].
+          y: (tensor) sized [N,].
+
+        Return:
+          (tensor) focal loss.
+        """
+        alpha = 0.25
+        gamma = 2
+
+        t = one_hot_embedding(y.data.cpu(), 1+self.num_classes)  # [N,21]
+        t = t[:,1:]  # exclude background
+        t = Variable(t).cuda()  # [N,20]
+
+        p = x.sigmoid()
+        pt = p*t + (1-p)*(1-t)         # pt = p if t > 0 else 1-p
+        w = alpha*t + (1-alpha)*(1-t)  # w = alpha if t > 0 else 1-alpha
+        w = w * (1-pt).pow(gamma)
+        return F.binary_cross_entropy_with_logits(x, t, w, size_average=False)
+
+    def focal_loss_label_enhanced(self, x, y, labels):
         """Focal loss.
 
         Args:
@@ -235,7 +258,7 @@ class RetinaLoss(nn.Module):
 
         loc_loss = F.smooth_l1_loss(masked_loc_preds, masked_loc_targets, size_average=False)
         masked_human_labels = human_labels.unsqueeze(1).expand_as(cls_preds)[mask].view(-1, self.num_classes)
-        cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg], masked_human_labels)
+        cls_loss = self.focal_loss_label_enhanced(masked_cls_preds, cls_targets[pos_neg], masked_human_labels)
         loss = (loc_loss+cls_loss)/num_pos
         return loss
 
