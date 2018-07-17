@@ -25,7 +25,7 @@ class RandomSubsetSampler(Sampler):
 
 
 class ImageDetectionDataset(Dataset):
-    def __init__(self, ids, annotations, annotations_human_labels, images_dir, target_encoder, train_mode,
+    def __init__(self, ids, annotations, annotations_human_labels, images_dir, target_encoder, train_mode, num_classes=20,
                  image_transform=None):
         super().__init__()
         self.ids = ids
@@ -35,6 +35,7 @@ class ImageDetectionDataset(Dataset):
         self.target_encoder = target_encoder
         self.train_mode = train_mode
 
+        self.num_classes = num_classes
         self.image_transform = image_transform
 
     def __len__(self):
@@ -67,8 +68,9 @@ class ImageDetectionDataset(Dataset):
 
     def load_target(self, index, img_shape):
         imgId = self.ids[index]
-        boxes_rows = self.annotations[self.annotations['ImageID'] == imgId]
-        return self.get_boxes_and_labels(boxes_rows, img_shape)
+        boxes_rows = self.annotations.query('ImageID == @imgId')
+        human_labels = self.annotations_human_labels.query('ImageID == @imgId')
+        return self.get_boxes_and_labels(boxes_rows, img_shape) + self.get_human_labels(human_labels)
 
     def get_boxes_and_labels(self, boxes_rows, img_shape):
         boxes, labels = [], []
@@ -83,11 +85,17 @@ class ImageDetectionDataset(Dataset):
             labels.append(label)
         return torch.FloatTensor(boxes), torch.FloatTensor(labels)
 
+    def get_human_labels(self, annotations):
+        labels = list(annotations['LabelName'].values)
+        labels_ = torch.zeros(self.num_classes)
+        labels_[[int(label) for label in labels]] = 1
+        return labels_,
+
     def collate_fn(self, batch):
         """Encode targets.
 
         Args:
-          batch: (list) of images, bbox_targets, clf_targets.
+          batch: (list) of images, (bbox_targets, clf_targets, human_labels).
 
         Returns:
           images, stacked bbox_targets, stacked clf_targets.
@@ -95,6 +103,7 @@ class ImageDetectionDataset(Dataset):
         imgs = [x[0] for x in batch]
         boxes = [x[1][0] for x in batch]
         labels = [x[1][1] for x in batch]
+        human_labels = [x[1][2] for x in batch]
 
         inputs = torch.stack(imgs)
         input_size = torch.Tensor(list(inputs.size()[-2:]))
@@ -107,7 +116,16 @@ class ImageDetectionDataset(Dataset):
         bbox_targets, clf_targets = torch.stack(bbox_targets), torch.stack(clf_targets)
         clf_targets = clf_targets.unsqueeze(-1)
         targets = torch.cat((bbox_targets, clf_targets), 2)
+
+        targets = self.join_target_with_labels(targets, human_labels)
         return inputs, targets
+
+    def join_target_with_labels(self, targets, human_labels):
+        human_labels = torch.stack(human_labels)
+        human_labels = human_labels.unsqueeze(-1)
+        human_labels = torch.cat([human_labels,]*targets.size(-1), dim=-1)
+        targets = torch.cat([targets, human_labels], dim=1)
+        return targets
 
 
 class ImageDetectionLoader(BaseTransformer):
@@ -149,6 +167,7 @@ class ImageDetectionLoader(BaseTransformer):
                                    images_dir=self.dataset_params.images_dir,
                                    target_encoder=self.target_encoder,
                                    train_mode=True,
+                                   num_classes=self.dataset_params.num_classes,
                                    image_transform=self.image_transform)
             datagen = DataLoader(dataset, **loader_params,
                                  sampler=RandomSubsetSampler(data_size=len(dataset),
@@ -161,6 +180,7 @@ class ImageDetectionLoader(BaseTransformer):
                                    images_dir=self.dataset_params.images_dir,
                                    target_encoder=self.target_encoder,
                                    train_mode=False,
+                                   num_classes=self.dataset_params.num_classes,
                                    image_transform=self.image_transform)
 
             datagen = DataLoader(dataset, **loader_params)

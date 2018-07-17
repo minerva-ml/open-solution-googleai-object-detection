@@ -92,12 +92,14 @@ class Retina(ModelParallel):
         self.train_mode = train_mode
         self.encoder_depth = self.architecture_config['model_params']['encoder_depth']
         self.num_classes = self.architecture_config['model_params']['num_classes']
+        self.focal_loss_type = self.architecture_config['model_params']['focal_loss_type']
         self.pretrained = self.architecture_config['model_params']['pretrained']
         self.set_model()
         self.weight_regularization = weight_regularization
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
                                     **architecture_config['optimizer_params'])
-        self.loss_function = [('FocalLoss', DataParallelCriterion(RetinaLoss(num_classes=self.num_classes)), 1.0)]
+        self.loss_function = [('FocalLoss', DataParallelCriterion(
+            RetinaLoss(num_classes=self.num_classes, focal_loss_type=self.focal_loss_type)), 1.0)]
         self.callbacks = callbacks(self.callbacks_config)
 
     def transform(self, datagen, *args, **kwargs):
@@ -161,6 +163,6 @@ def callbacks(callbacks_config):
     early_stopping = EarlyStopping(**callbacks_config['early_stopping'])
 
     return CallbackList(
-        callbacks=[experiment_timing, training_monitor, #validation_monitor,
+        callbacks=[experiment_timing, training_monitor,  # validation_monitor,
                    model_checkpoints, lr_scheduler, early_stopping, neptune_monitor,
                    ])

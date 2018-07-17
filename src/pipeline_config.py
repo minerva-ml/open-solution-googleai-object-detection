@@ -37,7 +37,8 @@ SOLUTION_CONFIG = AttrDict({
                                   'w': params.image_w,
                                   'pad_method': params.pad_method,
                                   'images_dir': None,
-                                  'sample_size': params.training_sample_size
+                                  'sample_size': params.training_sample_size,
+                                  'num_classes': params.num_classes,
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
                                               'num_workers': params.num_workers,
@@ -54,7 +55,8 @@ SOLUTION_CONFIG = AttrDict({
     'retinanet': {
         'architecture_config': {'model_params': {'encoder_depth': params.encoder_depth,
                                                  'num_classes': params.num_classes,
-                                                 'pretrained': params.pretrained
+                                                 'pretrained': params.pretrained,
+                                                 'focal_loss_type': params.focal_loss
                                                  },
                                 'optimizer_params': {'lr': params.lr,
                                                      },

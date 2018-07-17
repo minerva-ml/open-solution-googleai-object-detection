@@ -54,6 +54,7 @@ parameters:
   encoder_depth: 50
   num_classes: 500
   pretrained: 1
+  focal_loss: 'standard'
 
 # Training schedule
   epochs_nr: 100
