@@ -117,7 +117,7 @@ class ImageDetectionLoader(BaseTransformer):
         self.loader_params = AttrDict(loader_params)
         self.dataset_params = AttrDict(dataset_params)
 
-        self.target_encoder = DataEncoder()
+        self.target_encoder = DataEncoder(**self.dataset_params.data_encoder)
         self.dataset = ImageDetectionDataset
 
         self.image_transform = transforms.Compose([transforms.Resize((self.dataset_params.h, self.dataset_params.w)),
@@ -162,8 +162,11 @@ class ImageDetectionLoader(BaseTransformer):
                                    target_encoder=self.target_encoder,
                                    train_mode=False,
                                    image_transform=self.image_transform)
+            if annotations is not None:
+                datagen = DataLoader(dataset, **loader_params, collate_fn=dataset.collate_fn)
+            else:
+                datagen = DataLoader(dataset, **loader_params)
 
-            datagen = DataLoader(dataset, **loader_params)
         steps = len(datagen)
         return datagen, steps
 

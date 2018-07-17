@@ -113,12 +113,12 @@ class RetinaNet(nn.Module):
     References:
         https://github.com/kuangliu/pytorch-retinanet
     """
-    num_anchors = 9
 
-    def __init__(self, encoder_depth, pretrained_encoder=True, num_classes=20):
+    def __init__(self, encoder_depth, pretrained_encoder=True, num_classes=20, num_anchors=0):
         super(RetinaNet, self).__init__()
         self.fpn = FPN(encoder_depth, pretrained_encoder)
         self.num_classes = num_classes
+        self.num_anchors = num_anchors
         self.loc_head = self._make_head(self.num_anchors * 4)
         self.cls_head = self._make_head(self.num_anchors * self.num_classes)
 
@@ -142,9 +142,13 @@ class RetinaNet(nn.Module):
     def _make_head(self, out_planes):
         layers = []
         for _ in range(4):
-            layers.append(nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1))
+            head_layer = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+            head_layer.__name__ = 'head_layer'
+            layers.append(head_layer)
             layers.append(nn.ReLU(True))
-        layers.append(nn.Conv2d(256, out_planes, kernel_size=3, stride=1, padding=1))
+        final_layer = nn.Conv2d(256, out_planes, kernel_size=3, stride=1, padding=1)
+        final_layer.__name__ = 'final_layer'
+        layers.append(final_layer)
         return nn.Sequential(*layers)
 
     def freeze_bn(self):
@@ -152,6 +156,10 @@ class RetinaNet(nn.Module):
         for layer in self.modules():
             if isinstance(layer, nn.BatchNorm2d):
                 layer.eval()
+
+    def train(self, mode=True):
+        super().train(mode)
+        self.freeze_bn()
 
 
 class RetinaLoss(nn.Module):
@@ -228,20 +236,32 @@ class RetinaLoss(nn.Module):
         masked_loc_targets = loc_targets[mask].view(-1,4)  # [#pos,4]
 
         pos_neg = cls_targets > -1  # exclude ignored anchors
+        num_pos_neg = pos_neg.data.long().sum()
+
         mask = pos_neg.unsqueeze(2).expand_as(cls_preds)
         masked_cls_preds = cls_preds[mask].view(-1,self.num_classes)
 
         loc_loss = F.smooth_l1_loss(masked_loc_preds, masked_loc_targets, size_average=False)
         cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg])
-        loss = (loc_loss+cls_loss)/num_pos
+
+        if num_pos_neg > 0:
+            cls_loss = cls_loss / num_pos_neg
+            loss = cls_loss * 10
+        else:
+            raise Exception('num_pos_neg == 0')
+        if num_pos > 0:
+            loc_loss = loc_loss / num_pos
+            loss += loc_loss
+
         return loss
 
 
 class BaseDataHandler():
-    def __init__(self):
+    def __init__(self, aspect_ratios, scale_ratios, num_anchors):
         self.anchor_areas = [32*32., 64*64., 128*128., 256*256., 512*512.]  # p3 -> p7
-        self.aspect_ratios = [1/2., 1/1., 2/1.]
-        self.scale_ratios = [1., pow(2,1/3.), pow(2,2/3.)]
+        self.aspect_ratios = aspect_ratios
+        self.scale_ratios = scale_ratios
+        self.num_anchors = num_anchors
         self.anchor_wh = self._get_anchor_hw()
 
     def _get_anchor_hw(self):
@@ -281,8 +301,8 @@ class BaseDataHandler():
             grid_size = input_size / fm_size
             fm_h, fm_w = int(fm_size[0]), int(fm_size[1])
             xy = meshgrid(fm_h,fm_w) + 0.5  # [fm_h*fm_w, 2]
-            xy = (xy*grid_size).view(fm_w,fm_h,1,2).expand(fm_w,fm_h,9,2)
-            hw = self.anchor_wh[i].view(1,1,9,2).expand(fm_w,fm_h,9,2)
+            xy = (xy*grid_size).view(fm_w,fm_h,1,2).expand(fm_w,fm_h,self.num_anchors,2)
+            hw = self.anchor_wh[i].view(1,1,self.num_anchors,2).expand(fm_w,fm_h,self.num_anchors,2)
             box = torch.cat([xy,hw], 3)  # [x,y,w,h]
             boxes.append(box.view(-1,4))
         return torch.cat(boxes, 0)
@@ -311,26 +331,31 @@ class DataEncoder(BaseDataHandler):
         input_size = torch.Tensor([input_size, input_size]) if isinstance(input_size, int) \
                      else torch.Tensor(input_size)
         anchor_boxes = self._get_anchor_boxes(input_size)
-        boxes = change_box_order(boxes, 'xyxy2xywh')
 
-        ious = box_iou(anchor_boxes, boxes, order='xywh')
-        max_ious, max_ids = ious.max(1)
-        boxes = boxes[max_ids]
+        if len(boxes) > 0:
+            boxes = change_box_order(boxes, 'xyxy2xywh')
 
-        loc_xy = (boxes[:,:2]-anchor_boxes[:,:2]) / anchor_boxes[:,2:]
-        loc_hw = torch.log(boxes[:,2:]/anchor_boxes[:,2:])
-        loc_targets = torch.cat([loc_xy,loc_hw], 1)
-        cls_targets = 1 + labels[max_ids]
+            ious = box_iou(anchor_boxes, boxes, order='xywh')
+            max_ious, max_ids = ious.max(1)
+            boxes = boxes[max_ids]
 
-        cls_targets[max_ious<0.5] = 0
-        ignore = (max_ious>0.4) & (max_ious<0.5)  # ignore ious between [0.4,0.5]
-        cls_targets[ignore] = -1  # for now just mark ignored to -1
+            loc_xy = (boxes[:,:2]-anchor_boxes[:,:2]) / anchor_boxes[:,2:]
+            loc_hw = torch.log(boxes[:,2:]/anchor_boxes[:,2:])
+            loc_targets = torch.cat([loc_xy,loc_hw], 1)
+            cls_targets = 1 + labels[max_ids]
+
+            cls_targets[max_ious<0.5] = 0
+            ignore = (max_ious>0.4) & (max_ious<0.5)  # ignore ious between [0.4,0.5]
+            cls_targets[ignore] = -1  # for now just mark ignored to -1
+        else:
+            loc_targets = torch.zeros(len(anchor_boxes), 4)
+            cls_targets = torch.zeros(len(anchor_boxes))
         return loc_targets, cls_targets
 
 
 class DataDecoder(BaseDataHandler, BaseTransformer):
-    def __init__(self, input_size):
-        super().__init__()
+    def __init__(self, input_size, **kwargs):
+        super().__init__(**kwargs)
         self.input_size = input_size
 
     def transform(self, box_predictions, class_predictions):

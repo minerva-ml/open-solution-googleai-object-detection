@@ -53,7 +53,8 @@ parameters:
 # Retina parameters (multi-output)
   encoder_depth: 50
   num_classes: 500
-  pretrained: 1
+  pretrained_encoder: 1
+  pi: 0.01
 
 # Training schedule
   epochs_nr: 100

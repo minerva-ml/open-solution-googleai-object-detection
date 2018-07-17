@@ -16,6 +16,11 @@ CATEGORY_LAYERS = [1, 19]
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
+# ASPECT_RATIOS = [1/2., 1/1., 2/1.]
+# SCALE_RATIOS = [1., pow(2,1/3.), pow(2,2/3.)]
+ASPECT_RATIOS = [1 / 1.]
+SCALE_RATIOS = [1., pow(2, 1 / 2.)]
+
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
                  'num_workers': params.num_workers,
@@ -37,7 +42,10 @@ SOLUTION_CONFIG = AttrDict({
                                   'w': params.image_w,
                                   'pad_method': params.pad_method,
                                   'images_dir': None,
-                                  'sample_size': params.training_sample_size
+                                  'sample_size': params.training_sample_size,
+                                  'data_encoder': {'aspect_ratios': ASPECT_RATIOS,
+                                                   'scale_ratios': SCALE_RATIOS,
+                                                   'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS)}
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
                                               'num_workers': params.num_workers,
@@ -54,7 +62,8 @@ SOLUTION_CONFIG = AttrDict({
     'retinanet': {
         'architecture_config': {'model_params': {'encoder_depth': params.encoder_depth,
                                                  'num_classes': params.num_classes,
-                                                 'pretrained': params.pretrained
+                                                 'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS),
+                                                 'pretrained_encoder': params.pretrained_encoder
                                                  },
                                 'optimizer_params': {'lr': params.lr,
                                                      },
@@ -62,6 +71,7 @@ SOLUTION_CONFIG = AttrDict({
                                                        'weight_decay_conv2d': params.l2_reg_conv,
                                                        },
                                 'weights_init': {'function': 'he',
+                                                 'pi': params.pi
                                                  }
                                 },
         'training_config': {'epochs': params.epochs_nr,
@@ -70,7 +80,7 @@ SOLUTION_CONFIG = AttrDict({
             'model_checkpoint': {
                 'filepath': os.path.join(GLOBAL_CONFIG['exp_root'], 'checkpoints', 'retinanet', 'best.torch'),
                 'epoch_every': 1,
-                'minimize': not params.validate_with_map
+                # 'minimize': not params.validate_with_map
             },
             'exp_lr_scheduler': {'gamma': params.gamma,
                                  'epoch_every': 1},
@@ -93,13 +103,16 @@ SOLUTION_CONFIG = AttrDict({
                                 # 'outputs_to_plot': params.unet_outputs_to_plot
                                 },
             'early_stopping': {'patience': params.patience,
-                               'minimize': not params.validate_with_map
+                               # 'minimize': not params.validate_with_map
                                },
         },
     },
     'postprocessing': {
         'data_decoder': {
-            'input_size': (params.image_h, params.image_w)
+            'input_size': (params.image_h, params.image_w),
+            'aspect_ratios': ASPECT_RATIOS,
+            'scale_ratios': SCALE_RATIOS,
+            'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS)
         },
         'prediction_formatter': {
             'image_size': (params.image_h, params.image_w)
