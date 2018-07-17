@@ -15,6 +15,7 @@ CATEGORY_IDS = [None, 100]
 CATEGORY_LAYERS = [1, 19]
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
+DESIRED_CLASS_SUBSET = ["Clothing"]
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
