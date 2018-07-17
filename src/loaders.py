@@ -7,7 +7,6 @@ from torch.utils.data.sampler import Sampler
 import torchvision.transforms as transforms
 from PIL import Image
 from steppy.base import BaseTransformer
-import numpy as np
 
 from .retinanet import DataEncoder
 from .pipeline_config import MEAN, STD
