@@ -52,7 +52,8 @@ SOLUTION_CONFIG = AttrDict({
     'retinanet': {
         'architecture_config': {'model_params': {'encoder_depth': params.encoder_depth,
                                                  'num_classes': params.num_classes,
-                                                 'pretrained': params.pretrained
+                                                 'pretrained': params.pretrained,
+                                                 'focal_loss_type': params.focal_loss
                                                  },
                                 'optimizer_params': {'lr': params.lr,
                                                      },

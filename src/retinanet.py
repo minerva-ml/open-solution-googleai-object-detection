@@ -155,9 +155,10 @@ class RetinaNet(nn.Module):
 
 
 class RetinaLoss(nn.Module):
-    def __init__(self, num_classes=20):
+    def __init__(self, num_classes=20, focal_loss_type='standard'):
         super().__init__()
         self.num_classes = num_classes
+        self.focal_loss_type = focal_loss_type
 
     def focal_loss(self, x, y):
         """Focal loss.
@@ -258,7 +259,14 @@ class RetinaLoss(nn.Module):
 
         loc_loss = F.smooth_l1_loss(masked_loc_preds, masked_loc_targets, size_average=False)
         masked_human_labels = human_labels.unsqueeze(1).expand_as(cls_preds)[mask].view(-1, self.num_classes)
-        cls_loss = self.focal_loss_label_enhanced(masked_cls_preds, cls_targets[pos_neg], masked_human_labels)
+        if self.focal_loss_type=='standard':
+            cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg])
+        elif self.focal_loss_type=='alternative':
+            cls_loss = self.focal_loss_alt(masked_cls_preds, cls_targets[pos_neg])
+        elif self.focal_loss_type=='label_enhanced':
+            cls_loss = self.focal_loss_label_enhanced(masked_cls_preds, cls_targets[pos_neg], masked_human_labels)
+        else:
+            raise NotImplementedError
         loss = (loc_loss+cls_loss)/num_pos
         return loss
 
