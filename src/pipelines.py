@@ -93,7 +93,6 @@ def postprocessing(model, label_encoder, config):
                                adapter=Adapter({'image_ids': E('input', 'img_ids'),
                                                 'results': E(decoder.name, 'results'),
                                                 'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
-                               load_persisted_output=True,
                                experiment_directory=config.env.cache_dirpath)
     return submission_producer
 

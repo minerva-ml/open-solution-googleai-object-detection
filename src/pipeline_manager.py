@@ -78,7 +78,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
         raise NotImplementedError
 
     if dev_mode:
-        valid_img_ids = valid_img_ids[:20]
+        valid_img_ids = valid_img_ids[:1000]
 
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
