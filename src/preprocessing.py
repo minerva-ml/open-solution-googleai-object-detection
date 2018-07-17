@@ -13,10 +13,14 @@ class GoogleAiLabelEncoder(BaseTransformer):
         return self
 
     def transform(self, annotations, annotations_human_labels, **kwargs):
-        annotations[self.colname] = self.encoder.transform(annotations[self.colname].values)
-        annotations_human_labels[self.colname] = self.encoder.transform(annotations_human_labels[self.colname].values)
-        return {'annotations': annotations,
-                'annotations_human_labels': annotations_human_labels}
+        if annotations is not None:
+            annotations[self.colname] = self.encoder.transform(annotations[self.colname].values)
+            annotations_human_labels[self.colname] = self.encoder.transform(
+                annotations_human_labels[self.colname].values)
+            return {'annotations': annotations,
+                    'annotations_human_labels': annotations_human_labels}
+        else:
+            return {'mapping': self.encoder.category_mapping[0]['mapping']}
 
     def load(self, filepath):
         self.encoder = joblib.load(filepath)
@@ -27,6 +31,7 @@ class GoogleAiLabelEncoder(BaseTransformer):
 
 
 class GoogleAiLabelDecoder(BaseTransformer):
-    def transform(self, label_encoder):
-        inverse_mapping = {val: name for name, val in label_encoder.category_mapping[0]['mapping']}
+
+    def transform(self, mapping, **kwargs):
+        inverse_mapping = {val: name for name, val in mapping}
         return {'inverse_mapping': inverse_mapping}

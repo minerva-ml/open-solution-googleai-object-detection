@@ -4,7 +4,7 @@ from steppy.base import IdentityOperation
 from steppy.adapter import Adapter, E
 
 from .loaders import ImageDetectionLoader
-from .steppy.base import Step
+from .steppy_dev.base import Step
 from .models import Retina
 from .retinanet import DataDecoder
 from .postprocessing import PredictionFormatter
@@ -65,7 +65,7 @@ def preprocessing_generator(config, is_train):
     else:
         loader = Step(name='loader',
                       transformer=ImageDetectionLoader(train_mode=False, **config.loader),
-                      input_data=['specs'],
+                      input_data=['input'],
                       input_steps=[label_encoder],
                       adapter=Adapter({'ids': E('input', 'img_ids'),
                                        'annotations': None,
@@ -77,22 +77,22 @@ def preprocessing_generator(config, is_train):
 
 def postprocessing(model, label_encoder, config):
     label_decoder = Step(name='label_decoder',
-                         transformer=GoogleAiLabelDecoder(label_encoder.transformer),
-                         input_steps=[model],
+                         transformer=GoogleAiLabelDecoder(),
+                         input_steps=[label_encoder, ],
                          experiment_directory=config.env.cache_dirpath)
 
     decoder = Step(name='decoder',
-                   transformer=DataDecoder(),
+                   transformer=DataDecoder(**config.postprocessing.data_decoder),
                    input_steps=[model, ],
                    experiment_directory=config.env.cache_dirpath)
 
     submission_producer = Step(name='submission_producer',
                                transformer=PredictionFormatter(**config.postprocessing.prediction_formatter),
-                               input_steps=[label_decoder,],
-                               input_data=['input', ],
+                               input_steps=[label_decoder, decoder],
+                               input_data=['input'],
                                adapter=Adapter({'image_ids': E('input', 'img_ids'),
-                                        'results': E(decoder.name, 'results'),
-                                        'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
+                                                'results': E(decoder.name, 'results'),
+                                                'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
                                experiment_directory=config.env.cache_dirpath)
     return submission_producer
 

@@ -97,7 +97,7 @@ class ImageDetectionDataset(Dataset):
         labels = [x[1][1] for x in batch]
 
         inputs = torch.stack(imgs)
-        input_size = torch.Tensor(list(inputs.size()[2:]))
+        input_size = torch.Tensor(list(inputs.size()[-2:]))
         bbox_targets, clf_targets = [], []
         for box, label in zip(boxes, labels):
             bbox_target, clf_target = self.target_encoder.encode(box, label, input_size=input_size)
@@ -163,8 +163,7 @@ class ImageDetectionLoader(BaseTransformer):
                                    train_mode=False,
                                    image_transform=self.image_transform)
 
-            datagen = DataLoader(dataset, **loader_params,
-                                 collate_fn=dataset.collate_fn)
+            datagen = DataLoader(dataset, **loader_params)
         steps = len(datagen)
         return datagen, steps
 

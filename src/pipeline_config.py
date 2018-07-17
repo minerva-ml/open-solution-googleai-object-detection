@@ -33,9 +33,7 @@ SOLUTION_CONFIG = AttrDict({
 
     'label_encoder': {'colname': LABEL_COLUMN
                       },
-    'loader': {'dataset_params': {'h_pad': params.h_pad,
-                                  'w_pad': params.w_pad,
-                                  'h': params.image_h,
+    'loader': {'dataset_params': {'h': params.image_h,
                                   'w': params.image_w,
                                   'pad_method': params.pad_method,
                                   'images_dir': None,
@@ -54,17 +52,7 @@ SOLUTION_CONFIG = AttrDict({
                },
 
     'retinanet': {
-        'architecture_config': {'model_params': {'n_filters': params.n_filters,
-                                                 'conv_kernel': params.conv_kernel,
-                                                 'pool_kernel': params.pool_kernel,
-                                                 'pool_stride': params.pool_stride,
-                                                 'repeat_blocks': params.repeat_blocks,
-                                                 'batch_norm': params.use_batch_norm,
-                                                 'dropout': params.dropout_conv,
-                                                 'in_channels': params.image_channels,
-                                                 'out_channels': params.channels_per_output,
-                                                 'nr_outputs': params.nr_unet_outputs,
-                                                 'encoder_depth': params.encoder_depth,
+        'architecture_config': {'model_params': {'encoder_depth': params.encoder_depth,
                                                  'num_classes': params.num_classes,
                                                  'pretrained': params.pretrained
                                                  },
@@ -80,7 +68,7 @@ SOLUTION_CONFIG = AttrDict({
                             },
         'callbacks_config': {
             'model_checkpoint': {
-                'filepath': os.path.join(GLOBAL_CONFIG['exp_root'], 'checkpoints', 'unet', 'best.torch'),
+                'filepath': os.path.join(GLOBAL_CONFIG['exp_root'], 'checkpoints', 'retinanet', 'best.torch'),
                 'epoch_every': 1,
                 'minimize': not params.validate_with_map
             },
@@ -110,6 +98,9 @@ SOLUTION_CONFIG = AttrDict({
         },
     },
     'postprocessing': {
+        'data_decoder': {
+            'input_size': (params.image_h, params.image_w)
+        },
         'prediction_formatter': {
             'image_size': (params.image_h, params.image_w)
         }

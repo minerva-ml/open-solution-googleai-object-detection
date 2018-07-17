@@ -1,13 +1,11 @@
-import json
 import logging
 import math
 import os
-import ntpath
 import random
 import sys
-import time
 from itertools import chain
-from collections import defaultdict, Iterable
+from collections import Iterable
+import subprocess
 
 import glob
 from deepsense import neptune
@@ -15,15 +13,11 @@ import numpy as np
 import pandas as pd
 import torch
 import yaml
-import imgaug as ia
 from PIL import Image
 from attrdict import AttrDict
 from pycocotools import mask as cocomask
-from pycocotools.coco import COCO
 from tqdm import tqdm
-from scipy import ndimage as ndi
-from .cocoeval import COCOeval
-from .steppy.base import BaseTransformer
+from steppy.base import BaseTransformer
 
 
 # Alex Martelli's 'Borg'
@@ -96,51 +90,6 @@ def get_img_ids_from_folder(dirpath, n_ids=None):
         if n_ids == i:
             break
     return ids
-
-
-def create_annotations(meta, predictions, logger, category_ids, category_layers, save=False, experiment_dir='./'):
-    """
-
-    Args:
-        meta: pd.DataFrame with metadata
-        predictions: list of labeled masks or numpy array of size [n_images, im_height, im_width]
-        logger: logging object
-        category_ids: list with ids of categories,
-            e.g. [None, 100] means, that no annotations will be created from category 0 data, and annotations
-            from category 1 will be created with category_id=100
-        category_layers:
-        save: True, if one want to save submission, False if one want to return it
-        experiment_dir: directory of experiment to save annotations, relevant if save==True
-
-    Returns: submission if save==False else True
-
-    """
-    annotations = []
-    logger.info('Creating annotations')
-    category_layers_inds = np.cumsum(category_layers)
-    for image_id, (prediction, image_scores) in zip(meta["ImageId"].values, predictions):
-        for category_ind, (category_instances, category_scores) in enumerate(zip(prediction, image_scores)):
-            category_nr = np.searchsorted(category_layers_inds, category_ind, side='right')
-            if category_ids[category_nr] != None:
-                masks = decompose(category_instances)
-                for mask_nr, (mask, score) in enumerate(zip(masks, category_scores)):
-                    annotation = {}
-                    annotation["image_id"] = int(image_id)
-                    annotation["category_id"] = category_ids[category_nr]
-                    annotation["score"] = score
-                    annotation["segmentation"] = rle_from_binary(mask.astype('uint8'))
-                    annotation['segmentation']['counts'] = annotation['segmentation']['counts'].decode("UTF-8")
-                    annotation["bbox"] = bounding_box_from_rle(rle_from_binary(mask.astype('uint8')))
-                    annotations.append(annotation)
-    if save:
-        submission_filepath = os.path.join(experiment_dir, 'submission.json')
-        with open(submission_filepath, "w") as fp:
-            fp.write(str(json.dumps(annotations)))
-            logger.info("Submission saved to {}".format(submission_filepath))
-            logger.info('submission head \n\n{}'.format(annotations[0]))
-        return True
-    else:
-        return annotations
 
 
 def rle_from_binary(prediction):
@@ -238,24 +187,8 @@ def generate_data_frame_chunks(meta, chunk_size):
         yield meta_chunk
 
 
-def map_evaluation(ground_truth, prediction):
-    return NotImplementedError
-
-
-# def coco_evaluation(gt_filepath, prediction_filepath, image_ids, category_ids, small_annotations_size):
-#     coco = COCO(gt_filepath)
-#     coco_results = coco.loadRes(prediction_filepath)
-#     cocoEval = COCOeval(coco, coco_results)
-#     cocoEval.params.imgIds = image_ids
-#     cocoEval.params.catIds = category_ids
-#     cocoEval.params.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, small_annotations_size ** 2],
-#                                [small_annotations_size ** 2, 1e5 ** 2]]
-#     cocoEval.params.areaRngLbl = ['all', 'small', 'large']
-#     cocoEval.evaluate()
-#     cocoEval.accumulate()
-#     cocoEval.summarize()
-#
-#     return cocoEval.stats[0], cocoEval.stats[3]
+def denormalize_img(image, mean, std):
+    return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)
 
 
 def make_apply_transformer(func, output_name='output', apply_on=None):
@@ -331,3 +264,78 @@ def make_apply_transformer_stream(func, output_name='output', apply_on=None):
 
     return StaticApplyTransformerStream()
 
+
+def competition_metric_evaluation(annotation_filepath,
+                                  annotations_human_labels_filepath,
+                                  prediction_filepath,
+                                  label_hierarchy_filepath,
+                                  metrics_filepath):
+    expanded_annotations_filepath = annotation_filepath.replace('.csv', '_expanded.csv')
+    expand_annotations_cmd = ["python src/object_detection/dataset_tools/oid_hierarchical_labels_expansion.py",
+                              "--json_hierarchy_file={}".format(label_hierarchy_filepath),
+                              "--input_annotations={}".format(annotation_filepath),
+                              "--output_annotations={}".format(expanded_annotations_filepath),
+                              "--annotation_type=1"]
+    expand_annotations_cmd = ' '.join(expand_annotations_cmd)
+
+    expanded_annotations_human_labels_filepath = annotations_human_labels_filepath.replace('.csv', '_expanded.csv')
+    expand_annotations_human_labels_cmd = [
+        "python src/object_detection/dataset_tools/oid_hierarchical_labels_expansion.py",
+        "--json_hierarchy_file={}".format(label_hierarchy_filepath),
+        "--input_annotations={}".format(annotations_human_labels_filepath),
+        "--output_annotations={}".format(
+            expanded_annotations_human_labels_filepath),
+        "--annotation_type=2"]
+    expand_annotations_human_labels_cmd = ' '.join(expand_annotations_human_labels_cmd)
+
+    run_evaluation_cmd = ["python src/object_detection/metrics/oid_od_challenge_evaluation.py",
+                          "--input_annotations_boxes={}".format(expanded_annotations_filepath),
+                          "--input_annotations_labels={}".format(expanded_annotations_human_labels_filepath),
+                          "--input_class_labelmap=src/object_detection/data/oid_object_detection_challenge_500_label_map.pbtxt",
+                          "--input_predictions={}".format(prediction_filepath),
+                          "--output_metrics={}".format(metrics_filepath)]
+    run_evaluation_cmd = ' '.join(run_evaluation_cmd)
+
+    subprocess.call(expand_annotations_cmd, shell=True)
+    subprocess.call(expand_annotations_human_labels_cmd, shell=True)
+    subprocess.call(run_evaluation_cmd, shell=True)
+
+    map_score = calculate_map(metrics_filepath)
+    return map_score
+
+
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+
+def submission_formatting(submission):
+    prediction_formatted = {}
+    for i, row in submission.iterrows():
+        image_id = row.ImageId
+        prediction = row.PredictionString
+        for pred in chunker(prediction.split(), 5):
+            label, x_min, y_min, w, h = pred
+            x_max = float(x_min) + float(h)
+            y_max = float(y_min) + float(w)
+            prediction_formatted.setdefault('ImageID', []).append(image_id)
+            prediction_formatted.setdefault('LabelName', []).append(label)
+            prediction_formatted.setdefault('XMin', []).append(x_min)
+            prediction_formatted.setdefault('YMin', []).append(y_min)
+            prediction_formatted.setdefault('XMax', []).append(x_max)
+            prediction_formatted.setdefault('YMax', []).append(y_max)
+            prediction_formatted.setdefault('Score', []).append(1.0)
+    prediction_formatted = pd.DataFrame(prediction_formatted)
+    return prediction_formatted
+
+
+def calculate_map(metrics_filepath):
+    with open(metrics_filepath) as f:
+        metrics = f.read().splitlines()
+
+    label_scores = []
+    for label_score in metrics:
+        score = float(label_score.split(',')[1])
+        if np.isnan(score):
+            score = 0.0
+        label_scores.append(score)
+    return np.mean(label_scores)
