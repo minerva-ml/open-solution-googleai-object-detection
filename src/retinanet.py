@@ -347,7 +347,7 @@ class DataEncoder(BaseDataHandler):
             loc_xy = (boxes[:,:2]-anchor_boxes[:,:2]) / anchor_boxes[:,2:]
             loc_hw = torch.log(boxes[:,2:]/anchor_boxes[:,2:])
             loc_targets = torch.cat([loc_xy,loc_hw], 1)
-            cls_targets = 1 + labels[max_ids]
+            cls_targets = labels[max_ids]
 
             cls_targets[max_ious<0.5] = 0
             ignore = (max_ious>0.4) & (max_ious<0.5)  # ignore ious between [0.4,0.5]
