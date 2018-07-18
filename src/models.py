@@ -1,3 +1,5 @@
+from functools import partial
+from math import log
 import torch
 from torch.autograd import Variable
 from torch import optim
@@ -81,6 +83,9 @@ class ModelParallel(Model):
             self.model = self.model.cuda()
         else:
             self.model.load_state_dict(torch.load(filepath, map_location=lambda storage, loc: storage))
+
+        self.model.train()
+
         return self
 
 
@@ -90,9 +95,9 @@ class Retina(ModelParallel):
         """
         super().__init__(architecture_config, training_config, callbacks_config)
         self.train_mode = train_mode
-        self.encoder_depth = self.architecture_config['model_params']['encoder_depth']
         self.num_classes = self.architecture_config['model_params']['num_classes']
-        self.pretrained = self.architecture_config['model_params']['pretrained']
+        self.pi = self.architecture_config['weights_init']['pi']
+
         self.set_model()
         self.weight_regularization = weight_regularization
         self.optimizer = optim.Adam(self.weight_regularization(self.model, **architecture_config['regularizer_params']),
@@ -120,24 +125,28 @@ class Retina(ModelParallel):
             else:
                 X = Variable(X, volatile=True)
 
-            output = self.model(X)
-            boxes_batch, labels_batch = output[:, :, :4].data.cpu(), output[:, :, 4:].data.cpu()
+            outputs = self.model(X)
+            outputs = [output.data.cpu() for output in outputs]
+            outputs = torch.cat(outputs, dim=0)
+
+            boxes_batch, labels_batch = outputs[:, :, :4], outputs[:, :, 4:]
             boxes.extend([box for box in boxes_batch])
             labels.extend([label for label in labels_batch])
+
             if batch_id == steps:
                 break
+
         self.model.train()
+
         outputs = {'box_predictions': boxes,
                    'class_predictions': labels}
         return outputs
 
     def set_model(self):
-        self.model = RetinaNet(encoder_depth=self.encoder_depth,
-                               num_classes=self.num_classes,
-                               pretrained_encoder=self.pretrained)
+        self.model = RetinaNet(**self.architecture_config['model_params'])
 
     def _initialize_model_weights(self):
-        # TODO: implement weights initialization from Retina paper
+        self.model.apply(partial(init_weights_retina, pi=self.pi))
         self.model.freeze_bn()
 
 
@@ -161,6 +170,16 @@ def callbacks(callbacks_config):
     early_stopping = EarlyStopping(**callbacks_config['early_stopping'])
 
     return CallbackList(
-        callbacks=[experiment_timing, training_monitor, #validation_monitor,
+        callbacks=[experiment_timing, training_monitor, validation_monitor,
                    model_checkpoints, lr_scheduler, early_stopping, neptune_monitor,
                    ])
+
+
+def init_weights_retina(module, pi):
+    if hasattr(module, 'name'):
+        b = -log((1 - pi) / pi)
+        if module.name == 'final_layer':
+            module.bias.data.fill_(b)
+        elif module.name == 'head_layer':
+            module.weight.data.normal_(0, pi)
+            module.bias.data.fill_(0)
