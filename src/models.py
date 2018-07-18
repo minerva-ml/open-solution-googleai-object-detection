@@ -126,8 +126,11 @@ class Retina(ModelParallel):
                 X = Variable(X, volatile=True)
 
             outputs = self.model(X)
-            outputs = [output.data.cpu() for output in outputs]
-            outputs = torch.cat(outputs, dim=0)
+            if isinstance(outputs, list):
+                outputs = [output.data.cpu() for output in outputs]
+                outputs = torch.cat(outputs, dim=0)
+            else:
+                outputs = outputs.data.cpu()
 
             boxes_batch, labels_batch = outputs[:, :, :4], outputs[:, :, 4:]
             boxes.extend([box for box in boxes_batch])
