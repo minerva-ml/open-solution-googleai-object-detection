@@ -35,7 +35,7 @@ parameters:
 # Execution
   clean_experiment_directory_before_training: 1
   num_workers: 4
-  num_threads: 1000
+  num_threads: 4
   load_in_memory: 0
   pin_memory: 1
   default_valid_ids: 1

@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torchvision import models
 from math import sqrt
+import multiprocessing as mp
 
 from steppy.base import BaseTransformer
 
@@ -359,14 +360,15 @@ class DataEncoder(BaseDataHandler):
 
 
 class DataDecoder(BaseDataHandler, BaseTransformer):
-    def __init__(self, input_size, **kwargs):
+    def __init__(self, input_size, num_threads, **kwargs):
         super().__init__(**kwargs)
         self.input_size = input_size
+        self.num_threads = num_threads
 
     def transform(self, box_predictions, class_predictions):
-        results = []
-        for bboxes, class_scores in zip(box_predictions, class_predictions):
-            results.append(self.decode(bboxes, class_scores, self.input_size))
+        with mp.pool.ThreadPool(self.num_threads) as executor:
+            results = executor.map(lambda input_: self.decode(*input_, input_size=self.input_size),
+                                   zip(box_predictions, class_predictions))
         return {'results': results}
 
     def decode(self, loc_preds, cls_preds, input_size):
@@ -398,6 +400,8 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
         score, labels = cls_preds.sigmoid().max(1)          # [#anchors,]
         ids = score > CLS_THRESH
         ids = ids.nonzero().squeeze()             # [#obj,]
+        if len(ids) == 0:
+            return torch.Tensor([]), torch.Tensor([])
         keep = box_nms(boxes[ids], score[ids], threshold=NMS_THRESH)
         return boxes[ids][keep], labels[ids][keep]
 
