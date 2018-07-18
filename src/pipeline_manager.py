@@ -48,18 +48,17 @@ def train(pipeline_name, dev_mode):
                                                             DESIRED_CLASS_SUBSET,
                                                             PARAMS.class_mappings_filepath)
 
-        valid_ids_data = reduce_number_of_classes(annotations_human_labels,
+        valid_ids_data = reduce_number_of_classes(valid_ids_data,
                                                   DESIRED_CLASS_SUBSET,
                                                   PARAMS.class_mappings_filepath)
 
     if PARAMS.default_valid_ids:
-
         valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
-        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
-        train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
+        valid_img_ids = set(valid_ids_data[ID_COLUMN].tolist())
+        train_img_ids = list(set(annotations[ID_COLUMN].values) - valid_img_ids)
     else:
-        valid_img_ids = annotations.sample(PARAMS.validation_sample_size, random_state=SEED)[ID_COLUMN].values
-        train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
+        raise NotImplementedError
+
 
     if dev_mode:
         train_img_ids = train_img_ids[:100]
