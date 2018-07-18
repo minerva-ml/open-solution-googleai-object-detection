@@ -38,7 +38,6 @@ class NeptuneContext(_Borg):
 
         self.ctx = neptune.Context()
         self.fallback_file = fallback_file
-        print(self.fallback_file)
         self.params = self._read_params()
         self.numeric_channel = neptune.ChannelType.NUMERIC
         self.image_channel = neptune.ChannelType.IMAGE
@@ -364,7 +363,6 @@ def reduce_number_of_classes(annotations_df, list_of_desired_classes, mappings_f
 
     assert all([cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are "\
                                                                                    "invalid "
-    # LOGGER.info("Training on a subset of classes: {}".format([codes2names[i] for i in list_of_desired_classes]))
     subset_df = annotations_df[annotations_df.LabelName.isin(list_of_desired_classes)]
 
     assert not subset_df.empty, "There is not enough data left after filtering for {} classes. This can happen when a "\
