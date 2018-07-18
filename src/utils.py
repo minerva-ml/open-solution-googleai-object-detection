@@ -1,24 +1,24 @@
+import glob
 import logging
 import math
 import os
+import pathlib
 import random
-import sys
-from itertools import chain
-from collections import Iterable
 import subprocess
+import sys
+from collections import Iterable
+from itertools import chain
 
-import glob
-from deepsense import neptune
 import numpy as np
 import pandas as pd
 import torch
 import yaml
 from PIL import Image
 from attrdict import AttrDict
+from deepsense import neptune
 from pycocotools import mask as cocomask
-from tqdm import tqdm
 from steppy.base import BaseTransformer
-import pathlib
+from tqdm import tqdm
 
 neptune_config_path = pathlib.Path(__file__).resolve().parents[1] / 'configs' / 'neptune_config_local.yaml'
 
@@ -353,21 +353,21 @@ def get_class_mappings(mappings_file):
 
 def reduce_number_of_classes(annotations_df, list_of_desired_classes, mappings_file):
     """
-    :param annotations_df:
-    :param list_of_desired_classes: List of classes from OIv4 either names or codes
-    :param mappings_file: Mapping file (codes two names csv)
+    :param annotations_df: loaded annotations file (pd.Dataframe)
+    :param list_of_desired_classes: List of classes from OIv4 either names or codes (starting with /)
+    :param mappings_file: Mapping file (codes to names csv)
     :return:
     """
     codes2names, names2codes = get_class_mappings(mappings_file)
     if not all([cls.startswith('/') for cls in list_of_desired_classes]):
         list_of_desired_classes = [names2codes.get(cls_name, 'notfound') for cls_name in list_of_desired_classes]
 
-    assert all([cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are " \
+    assert all([cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are "\
                                                                                    "invalid "
     # LOGGER.info("Training on a subset of classes: {}".format([codes2names[i] for i in list_of_desired_classes]))
     subset_df = annotations_df[annotations_df.LabelName.isin(list_of_desired_classes)]
 
-    assert not subset_df.empty, "There is not data left after filtering for {} classes. This can happen when a small " \
-                                "sample is used"
+    assert not subset_df.empty, "There is not enough data left after filtering for {} classes. This can happen when a "\
+                                "small sample is used"
 
     return subset_df
