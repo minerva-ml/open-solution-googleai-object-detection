@@ -10,7 +10,7 @@ from .utils import NeptuneContext, competition_metric_evaluation, generate_data_
     init_logger, reduce_number_of_classes, set_seed, submission_formatting
 
 LOGGER = init_logger()
-CTX = NeptuneContext().ctx
+CTX = NeptuneContext()
 PARAMS = CTX.params
 set_seed(SEED)
 
