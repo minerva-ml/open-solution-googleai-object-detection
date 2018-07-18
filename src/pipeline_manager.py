@@ -99,7 +99,8 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
-        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
+        valid_img_ids = set(valid_ids_data[ID_COLUMN].tolist())
+
     else:
         raise NotImplementedError
 
