@@ -42,14 +42,14 @@ def train(pipeline_name, dev_mode):
         LOGGER.info("Training on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
         annotations = reduce_number_of_classes(annotations,
                                                DESIRED_CLASS_SUBSET,
-                                               PARAMS.class_mappings_filepath)
+                                               PARAMS.class_mappings_filepath).reset_index(drop=True)
 
         annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
                                                             DESIRED_CLASS_SUBSET,
-                                                            PARAMS.class_mappings_filepath)
+                                                            PARAMS.class_mappings_filepath).reset_index(drop=True)
 
         img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
-        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)]
+        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)].reset_index(drop=True)
 
     if PARAMS.default_valid_ids:
         if valid_ids_data.shape[0] < PARAMS.validation_sample_size:
