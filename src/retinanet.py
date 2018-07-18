@@ -143,11 +143,11 @@ class RetinaNet(nn.Module):
         layers = []
         for _ in range(4):
             head_layer = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
-            head_layer.__name__ = 'head_layer'
+            head_layer.name = 'head_layer'
             layers.append(head_layer)
             layers.append(nn.ReLU(True))
         final_layer = nn.Conv2d(256, out_planes, kernel_size=3, stride=1, padding=1)
-        final_layer.__name__ = 'final_layer'
+        final_layer.name = 'final_layer'
         layers.append(final_layer)
         return nn.Sequential(*layers)
 
@@ -182,7 +182,11 @@ class RetinaLoss(nn.Module):
 
         t = one_hot_embedding(y.data.cpu(), 1+self.num_classes)  # [N,21]
         t = t[:,1:]  # exclude background
-        t = Variable(t).cuda()  # [N,20]
+        if torch.cuda.is_available():
+            t = Variable(t).cuda()  # [N,20]
+        else:
+            t = Variable(t)  # [N,20]
+
 
         p = x.sigmoid()
         pt = p*t + (1-p)*(1-t)         # pt = p if t > 0 else 1-p
@@ -204,7 +208,10 @@ class RetinaLoss(nn.Module):
 
         t = one_hot_embedding(y.data.cpu(), 1+self.num_classes)
         t = t[:,1:]
-        t = Variable(t).cuda()
+        if torch.cuda.is_available():
+            t = Variable(t).cuda()  # [N,20]
+        else:
+            t = Variable(t)  # [N,20]
 
         xt = x*(2*t-1)  # xt = x if t > 0 else -x
         pt = (2*xt+1).sigmoid()
@@ -244,14 +251,12 @@ class RetinaLoss(nn.Module):
         loc_loss = F.smooth_l1_loss(masked_loc_preds, masked_loc_targets, size_average=False)
         cls_loss = self.focal_loss(masked_cls_preds, cls_targets[pos_neg])
 
-        if num_pos_neg > 0:
-            cls_loss = cls_loss / num_pos_neg
-            loss = cls_loss * 10
+        if num_pos > 0:
+            loss = (cls_loss + loc_loss) / num_pos
+        elif num_pos_neg > 0:
+            loss = cls_loss
         else:
             raise Exception('num_pos_neg == 0')
-        if num_pos > 0:
-            loc_loss = loc_loss / num_pos
-            loss += loc_loss
 
         return loss
 

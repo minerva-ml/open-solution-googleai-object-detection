@@ -81,6 +81,13 @@ def get_logger():
     return logging.getLogger('google-ai-odt')
 
 
+def parameter_eval(param):
+    try:
+        return eval(param)
+    except Exception:
+        return param
+
+
 def get_img_ids_from_folder(dirpath, n_ids=None):
     ids = []
     for i, filepath in enumerate(glob.glob('{}/*'.format(dirpath))):

@@ -176,10 +176,10 @@ def callbacks(callbacks_config):
 
 
 def init_weights_retina(module, pi):
-    if hasattr(module, '__name__'):
+    if hasattr(module, 'name'):
         b = -log((1 - pi) / pi)
-        if module.__name__ == 'final_layer':
+        if module.name == 'final_layer':
             module.bias.data.fill_(b)
-        elif module.__name__ == 'head_layer':
+        elif module.name == 'head_layer':
             module.weight.data.normal_(0, pi)
             module.bias.data.fill_(0)

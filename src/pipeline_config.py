@@ -2,7 +2,7 @@ import os
 
 from attrdict import AttrDict
 
-from .utils import NeptuneContext
+from .utils import NeptuneContext, parameter_eval
 
 neptune_ctx = NeptuneContext()
 params = neptune_ctx.params
@@ -16,10 +16,8 @@ CATEGORY_LAYERS = [1, 19]
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
-# ASPECT_RATIOS = [1/2., 1/1., 2/1.]
-# SCALE_RATIOS = [1., pow(2,1/3.), pow(2,2/3.)]
-ASPECT_RATIOS = [1 / 1.]
-SCALE_RATIOS = [1., pow(2, 1 / 2.)]
+ASPECT_RATIOS = parameter_eval(params.aspect_ratios)
+SCALE_RATIOS = parameter_eval(params.scale_ratios)
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
