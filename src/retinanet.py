@@ -400,6 +400,8 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
         score, labels = cls_preds.sigmoid().max(1)          # [#anchors,]
         ids = score > CLS_THRESH
         ids = ids.nonzero().squeeze()             # [#obj,]
+        if len(ids) == 0:
+            return torch.Tensor([]), torch.Tensor([])
         keep = box_nms(boxes[ids], score[ids], threshold=NMS_THRESH)
         return boxes[ids][keep], labels[ids][keep]
 
