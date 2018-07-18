@@ -379,4 +379,4 @@ def reduce_number_of_classes(annotations_df, list_of_desired_classes, mappings_f
     assert not subset_df.empty, "There is not enough data left after filtering for {} classes. This can happen when a "\
                                 "small sample is used"
 
-    return subset_df
+    return subset_df.reset_index(drop=True)
