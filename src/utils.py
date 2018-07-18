@@ -1,23 +1,26 @@
+import glob
 import logging
 import math
 import os
+import pathlib
 import random
-import sys
-from itertools import chain
-from collections import Iterable
 import subprocess
+import sys
+from collections import Iterable
+from itertools import chain
 
-import glob
-from deepsense import neptune
 import numpy as np
 import pandas as pd
 import torch
 import yaml
 from PIL import Image
 from attrdict import AttrDict
+from deepsense import neptune
 from pycocotools import mask as cocomask
-from tqdm import tqdm
 from steppy.base import BaseTransformer
+from tqdm import tqdm
+
+neptune_config_path = pathlib.Path(__file__).resolve().parents[1] / 'configs' / 'neptune_config_local.yaml'
 
 
 # Alex Martelli's 'Borg'
@@ -30,7 +33,7 @@ class _Borg:
 
 
 class NeptuneContext(_Borg):
-    def __init__(self, fallback_file='configs/neptune_local.yaml'):
+    def __init__(self, fallback_file=neptune_config_path):
         _Borg.__init__(self)
 
         self.ctx = neptune.Context()
@@ -339,3 +342,36 @@ def calculate_map(metrics_filepath):
             score = 0.0
         label_scores.append(score)
     return np.mean(label_scores)
+
+
+def get_class_mappings(mappings_file):
+    codes2names = pd.read_csv(mappings_file, header=None).set_index(0).to_dict()[1]
+    names2codes = {v: k for k, v in codes2names.items()}
+    return codes2names, names2codes
+
+
+def reduce_number_of_classes(annotations_df, list_of_desired_classes, mappings_file):
+    """
+    Filters a dataframe based on provided classes
+
+    Args:
+        annotations_df: Loaded annotation file (pd.DataFrame)
+        list_of_desired_classes: List of codes or names of Open Images v4 classes
+        mappings_file: codes to names csv
+
+    Returns:
+
+    """
+
+    codes2names, names2codes = get_class_mappings(mappings_file)
+    if not all([cls.startswith('/') for cls in list_of_desired_classes]):
+        list_of_desired_classes = [names2codes.get(cls_name, 'notfound') for cls_name in list_of_desired_classes]
+
+    assert all([cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are "\
+                                                                                   "invalid "
+    subset_df = annotations_df[annotations_df.LabelName.isin(list_of_desired_classes)]
+
+    assert not subset_df.empty, "There is not enough data left after filtering for {} classes. This can happen when a "\
+                                "small sample is used"
+
+    return subset_df

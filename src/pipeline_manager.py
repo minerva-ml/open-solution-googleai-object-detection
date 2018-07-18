@@ -1,16 +1,16 @@
+import json
 import os
 import shutil
 
 import pandas as pd
-import json
 
-from .pipeline_config import SOLUTION_CONFIG, SEED, ID_COLUMN
+from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
-from .utils import init_logger, set_seed, get_img_ids_from_folder, competition_metric_evaluation, \
-    generate_data_frame_chunks, NeptuneContext, submission_formatting
+from .utils import NeptuneContext, competition_metric_evaluation, generate_data_frame_chunks, get_img_ids_from_folder, \
+    init_logger, reduce_number_of_classes, set_seed, submission_formatting
 
 LOGGER = init_logger()
-CTX = NeptuneContext().ctx
+CTX = NeptuneContext()
 PARAMS = CTX.params
 set_seed(SEED)
 
@@ -36,9 +36,25 @@ def train(pipeline_name, dev_mode):
 
     annotations = pd.read_csv(PARAMS.annotations_filepath)
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
+    valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
+
+    if DESIRED_CLASS_SUBSET:
+        LOGGER.info("Training on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
+        annotations = reduce_number_of_classes(annotations,
+                                               DESIRED_CLASS_SUBSET,
+                                               PARAMS.class_mappings_filepath)
+
+        annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
+                                                            DESIRED_CLASS_SUBSET,
+                                                            PARAMS.class_mappings_filepath)
+
+        valid_ids_data = reduce_number_of_classes(annotations_human_labels,
+                                                  DESIRED_CLASS_SUBSET,
+                                                  PARAMS.class_mappings_filepath)
 
     if PARAMS.default_valid_ids:
-        valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath).sample(PARAMS.validation_sample_size, random_state=SEED)
+
+        valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
         valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
         train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
     else:
@@ -70,6 +86,16 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 
     annotations = pd.read_csv(PARAMS.annotations_filepath)
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
+
+    if DESIRED_CLASS_SUBSET:
+        LOGGER.info("Evaluating on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
+        annotations = reduce_number_of_classes(annotations,
+                                               DESIRED_CLASS_SUBSET,
+                                               PARAMS.class_mappings_filepath)
+
+        annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
+                                                            DESIRED_CLASS_SUBSET,
+                                                            PARAMS.class_mappings_filepath)
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
