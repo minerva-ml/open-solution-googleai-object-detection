@@ -28,11 +28,11 @@ class PredictionFormatter(BaseTransformer):
         return self.decoder_dict[label]
 
     def _get_bbox_relative(self, bbox):
-        x = self.image_size[0]
-        y = self.image_size[1]
-        x_center = bbox[0] / x
-        y_center = bbox[1] / y
-        h = bbox[2] / x
-        w = bbox[3] / y
-        result = [x_center, y_center, h, w]
+        h = self.image_size[0]
+        w = self.image_size[1]
+        x_min = bbox[0] / h
+        y_min = bbox[1] / w
+        x_max = bbox[2] / h
+        y_max = bbox[3] / w
+        result = [x_min, y_min, x_max, y_max]
         return [str(r) for r in result]

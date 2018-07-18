@@ -324,9 +324,7 @@ def submission_formatting(submission):
         image_id = row.ImageId
         prediction = row.PredictionString
         for pred in chunker(prediction.split(), 5):
-            label, x_min, y_min, w, h = pred
-            x_max = float(x_min) + float(h)
-            y_max = float(y_min) + float(w)
+            label, x_min, y_min, x_max, y_max = pred
             prediction_formatted.setdefault('ImageID', []).append(image_id)
             prediction_formatted.setdefault('LabelName', []).append(label)
             prediction_formatted.setdefault('XMin', []).append(x_min)
