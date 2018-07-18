@@ -352,11 +352,17 @@ def get_class_mappings(mappings_file):
 
 def reduce_number_of_classes(annotations_df, list_of_desired_classes, mappings_file):
     """
-    :param annotations_df: loaded annotations file (pd.Dataframe)
-    :param list_of_desired_classes: List of classes from OIv4 either names or codes (starting with /)
-    :param mappings_file: Mapping file (codes to names csv)
-    :return:
+    Filters a dataframe based on provided classes
+
+    Args:
+        annotations_df: Loaded annotation file (pd.DataFrame)
+        list_of_desired_classes: List of codes or names of Open Images v4 classes
+        mappings_file: codes to names csv
+
+    Returns:
+
     """
+
     codes2names, names2codes = get_class_mappings(mappings_file)
     if not all([cls.startswith('/') for cls in list_of_desired_classes]):
         list_of_desired_classes = [names2codes.get(cls_name, 'notfound') for cls_name in list_of_desired_classes]
