@@ -398,6 +398,7 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
         boxes = torch.cat([xy-wh/2, xy+wh/2], 1)  # [#anchors,4]
 
         score, labels = cls_preds.sigmoid().max(1)          # [#anchors,]
+        labels += 1
         ids = score > CLS_THRESH
         ids = ids.nonzero().squeeze()             # [#obj,]
         if len(ids) == 0:
