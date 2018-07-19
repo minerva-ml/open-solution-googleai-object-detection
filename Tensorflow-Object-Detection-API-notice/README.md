@@ -1,6 +1,6 @@
 ### Tensorflow Object Detection API
 * [Object detection](https://github.com/neptune-ml/open-solution-googleai-object-detection/tree/master/src/object_detection) directory in this GitHub repository is a modification of the [Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection), which is part of the [tensorflow/models](https://github.com/tensorflow/models).
-* Tensorflow/models is licensed under the `Apache License 2.0`: https://github.com/tensorflow/models/blob/master/LICENSE
+* Tensorflow/models is licensed under the [Apache License 2.0](https://github.com/tensorflow/models/blob/master/LICENSE)
 * Copy of the aforementioned license is available: https://github.com/neptune-ml/open-solution-googleai-object-detection/tree/master/Tensorflow-Object-Detection-API-notice/LICENSE-copy
 
 ### Code Changes
