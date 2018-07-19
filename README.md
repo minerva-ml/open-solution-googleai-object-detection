@@ -46,7 +46,8 @@ git clone https://github.com/neptune-ml/open-solution-googleai-object-detection.
 ```
 2. Install requirements in your Python3 environment
 ```bash
-pip3 install requirements.txt
+conda create -n objdet && source activate objdet
+pip3 install -r requirements.txt
 ```
 3. Register to the [neptune.ml](https://neptune.ml/login) _(if you wish to use it)_
 4. Update data directories in the [neptune.yaml](https://github.com/neptune-ml/open-solution-googleai-object-detection/blob/master/neptune.yaml) configuration file
