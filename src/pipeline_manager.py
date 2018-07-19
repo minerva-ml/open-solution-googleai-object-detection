@@ -61,7 +61,7 @@ def train(pipeline_name, dev_mode):
 
         valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
         valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
-        train_img_ids = list(set(annotations[ID_COLUMN].values) - valid_img_ids)
+        train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
     else:
         raise NotImplementedError
 
