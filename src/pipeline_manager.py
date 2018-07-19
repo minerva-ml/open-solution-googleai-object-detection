@@ -121,27 +121,30 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
     prediction_filepath = os.path.join(PARAMS.experiment_dir, 'evaluation_prediction.csv')
     prediction.to_csv(prediction_filepath, index=None)
 
-    LOGGER.info('Calculating mean average precision')
-    validation_annotations = annotations[annotations[ID_COLUMN].isin(valid_img_ids)]
-    validation_annotations_human_labels = annotations_human_labels[
-        annotations_human_labels[ID_COLUMN].isin(valid_img_ids)]
-    validation_annotations_filepath = os.path.join(PARAMS.experiment_dir, 'validation_annotations.csv')
-    validation_annotations.to_csv(validation_annotations_filepath, index=None)
-    validation_annotations_human_labels_filepath = os.path.join(PARAMS.experiment_dir,
-                                                                'validation_annotations_human_labels.csv')
+    if prediction.empty:
+        LOGGER.info('Background predicted for all the classes. Metric cannot be calculated')
+    else:
+        LOGGER.info('Calculating mean average precision')
+        validation_annotations = annotations[annotations[ID_COLUMN].isin(valid_img_ids)]
+        validation_annotations_human_labels = annotations_human_labels[
+            annotations_human_labels[ID_COLUMN].isin(valid_img_ids)]
+        validation_annotations_filepath = os.path.join(PARAMS.experiment_dir, 'validation_annotations.csv')
+        validation_annotations.to_csv(validation_annotations_filepath, index=None)
+        validation_annotations_human_labels_filepath = os.path.join(PARAMS.experiment_dir,
+                                                                    'validation_annotations_human_labels.csv')
 
-    validation_annotations_human_labels.to_csv(validation_annotations_human_labels_filepath, index=None)
-    metrics_filepath = os.path.join(PARAMS.experiment_dir, 'validation_metrics')
-    mean_average_precision = competition_metric_evaluation(annotation_filepath=validation_annotations_filepath,
-                                                           annotations_human_labels_filepath=validation_annotations_human_labels_filepath,
-                                                           prediction_filepath=prediction_filepath,
-                                                           label_hierarchy_filepath=PARAMS.bbox_hierarchy_filepath,
-                                                           metrics_filepath=metrics_filepath,
-                                                           list_of_desired_classes=DESIRED_CLASS_SUBSET,
-                                                           mappings_filepath=PARAMS.class_mappings_filepath
-                                                           )
-    LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
-    CTX.channel_send('MAP', 0, mean_average_precision)
+        validation_annotations_human_labels.to_csv(validation_annotations_human_labels_filepath, index=None)
+        metrics_filepath = os.path.join(PARAMS.experiment_dir, 'validation_metrics')
+        mean_average_precision = competition_metric_evaluation(annotation_filepath=validation_annotations_filepath,
+                                                               annotations_human_labels_filepath=validation_annotations_human_labels_filepath,
+                                                               prediction_filepath=prediction_filepath,
+                                                               label_hierarchy_filepath=PARAMS.bbox_hierarchy_filepath,
+                                                               metrics_filepath=metrics_filepath,
+                                                               list_of_desired_classes=DESIRED_CLASS_SUBSET,
+                                                               mappings_filepath=PARAMS.class_mappings_filepath
+                                                               )
+        LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
+        CTX.channel_send('MAP', 0, mean_average_precision)
 
 
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):

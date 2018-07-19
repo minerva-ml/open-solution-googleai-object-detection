@@ -20,7 +20,7 @@ from pycocotools import mask as cocomask
 from steppy.base import BaseTransformer
 from tqdm import tqdm
 
-neptune_config_path = pathlib.Path(__file__).resolve().parents[1] / 'configs' / 'neptune_config_local.yaml'
+neptune_config_path = str(pathlib.Path(__file__).resolve().parents[1] / 'configs' / 'neptune_config_local.yaml')
 
 
 # Alex Martelli's 'Borg'
