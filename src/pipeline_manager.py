@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
-from .utils import NeptuneContext, competition_metric_evaluation, generate_data_frame_chunks, get_img_ids_from_folder, \
+from .utils import NeptuneContext, competition_metric_evaluation, generate_list_chunks, get_img_ids_from_folder, \
     init_logger, reduce_number_of_classes, set_seed, submission_formatting
 
 LOGGER = init_logger()
@@ -153,11 +153,10 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     prediction = generate_prediction(test_img_ids, pipeline, chunk_size)
 
     submission = prediction
-    submission_filepath = os.path.join(PARAMS.experiment_dir, 'submission.json')
-    with open(submission_filepath, "w") as fp:
-        fp.write(json.dumps(submission))
-        LOGGER.info('submission saved to {}'.format(submission_filepath))
-        LOGGER.info('submission head \n\n{}'.format(submission[0]))
+    submission_filepath = os.path.join(PARAMS.experiment_dir, 'submission.csv')
+    submission.to_csv(submission_filepath, index=None)
+    LOGGER.info('submission saved to {}'.format(submission_filepath))
+    LOGGER.info('submission head \n\n{}'.format(submission.head()))
 
     if submit_predictions:
         make_submission(submission_filepath)
@@ -166,7 +165,8 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
 def make_submission(submission_filepath):
     LOGGER.info('Making Kaggle submit...')
     os.system(
-        'kaggle competitions submit -c google-ai-open-images-object-detection-track -f {}'.format(submission_filepath))
+        'kaggle competitions submit -c google-ai-open-images-object-detection-track -f {} -m {}'.format(
+            submission_filepath, PARAMS.kaggle_message))
     LOGGER.info('Kaggle submit completed')
 
 
@@ -193,7 +193,7 @@ def _generate_prediction(img_ids, pipeline):
 
 def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
     predictions = []
-    for img_ids_chunk in generate_data_frame_chunks(img_ids, chunk_size):
+    for img_ids_chunk in generate_list_chunks(img_ids, chunk_size):
         data = {'input': {'img_ids': img_ids_chunk
                           },
                 'metadata': {'annotations': None,
@@ -208,3 +208,4 @@ def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
 
     predictions = pd.concat(predictions)
     return predictions
+
