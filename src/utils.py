@@ -351,6 +351,11 @@ def calculate_map(metrics_filepath, list_of_desired_classes=None, mappings_file=
         if not all([cls.startswith('/') for cls in list_of_desired_classes]):
             list_of_desired_classes = [names2codes.get(cls_name, 'notfound')
                                        for cls_name in list_of_desired_classes]
+
+        assert all(
+            [cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are " \
+                                                                                "invalid "
+
     label_scores = []
     for label_score in metrics:
         score = float(label_score.split(',')[1])
