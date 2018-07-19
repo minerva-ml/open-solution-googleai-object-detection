@@ -15,7 +15,7 @@ CATEGORY_IDS = [None, 100]
 CATEGORY_LAYERS = [1, 19]
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
-DESIRED_CLASS_SUBSET = ["Clothing"]
+DESIRED_CLASS_SUBSET = ["Person", "Car", "Dress", "Footwear"]
 
 ASPECT_RATIOS = parameter_eval(params.aspect_ratios)
 SCALE_RATIOS = parameter_eval(params.scale_ratios)

@@ -3,7 +3,7 @@ import os
 import shutil
 
 import pandas as pd
-
+import numpy as np
 from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
 from .utils import NeptuneContext, competition_metric_evaluation, generate_data_frame_chunks, get_img_ids_from_folder, \
@@ -48,17 +48,20 @@ def train(pipeline_name, dev_mode):
                                                             DESIRED_CLASS_SUBSET,
                                                             PARAMS.class_mappings_filepath)
 
-        valid_ids_data = reduce_number_of_classes(valid_ids_data,
-                                                  DESIRED_CLASS_SUBSET,
-                                                  PARAMS.class_mappings_filepath)
+        img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
+        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)].reset_index(drop=True)
 
     if PARAMS.default_valid_ids:
+        if valid_ids_data.shape[0] < PARAMS.validation_sample_size:
+            LOGGER.warning("Validation sample-size is smaller then desired validation sample size ... clipping")
+            PARAMS.validation_sample_size = np.clip(PARAMS.validation_sample_size,
+                                                    a_max=valid_ids_data.shape[0])
+
         valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
         valid_img_ids = set(valid_ids_data[ID_COLUMN].tolist())
         train_img_ids = list(set(annotations[ID_COLUMN].values) - valid_img_ids)
     else:
         raise NotImplementedError
-
 
     if dev_mode:
         train_img_ids = train_img_ids[:100]
