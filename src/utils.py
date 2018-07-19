@@ -20,7 +20,7 @@ from pycocotools import mask as cocomask
 from steppy.base import BaseTransformer
 from tqdm import tqdm
 
-neptune_config_path = pathlib.Path(__file__).resolve().parents[1] / 'configs' / 'neptune_config_local.yaml'
+neptune_config_path = str(pathlib.Path(__file__).resolve().parents[1] / 'configs' / 'neptune_config_local.yaml')
 
 
 # Alex Martelli's 'Borg'
@@ -42,6 +42,9 @@ class NeptuneContext(_Borg):
         self.numeric_channel = neptune.ChannelType.NUMERIC
         self.image_channel = neptune.ChannelType.IMAGE
         self.text_channel = neptune.ChannelType.TEXT
+
+    def channel_send(self, *args, **kwargs):
+        self.ctx.channel_send(*args, **kwargs)
 
     def _read_params(self):
         if self.ctx.params.__class__.__name__ == 'OfflineContextParams':
@@ -279,7 +282,10 @@ def competition_metric_evaluation(annotation_filepath,
                                   annotations_human_labels_filepath,
                                   prediction_filepath,
                                   label_hierarchy_filepath,
-                                  metrics_filepath):
+                                  metrics_filepath,
+                                  list_of_desired_classes=None,
+                                  mappings_filepath=None
+                                  ):
     expanded_annotations_filepath = annotation_filepath.replace('.csv', '_expanded.csv')
     expand_annotations_cmd = ["python src/object_detection/dataset_tools/oid_hierarchical_labels_expansion.py",
                               "--json_hierarchy_file={}".format(label_hierarchy_filepath),
@@ -310,7 +316,7 @@ def competition_metric_evaluation(annotation_filepath,
     subprocess.call(expand_annotations_human_labels_cmd, shell=True)
     subprocess.call(run_evaluation_cmd, shell=True)
 
-    map_score = calculate_map(metrics_filepath)
+    map_score = calculate_map(metrics_filepath, list_of_desired_classes, mappings_filepath)
     return map_score
 
 
@@ -336,16 +342,31 @@ def submission_formatting(submission):
     return prediction_formatted
 
 
-def calculate_map(metrics_filepath):
+def calculate_map(metrics_filepath, list_of_desired_classes=None, mappings_file=None):
     with open(metrics_filepath) as f:
         metrics = f.read().splitlines()
+
+    if list_of_desired_classes:
+        codes2names, names2codes = get_class_mappings(mappings_file)
+        if not all([cls.startswith('/') for cls in list_of_desired_classes]):
+            list_of_desired_classes = [names2codes.get(cls_name, 'notfound')
+                                       for cls_name in list_of_desired_classes]
+
+        assert all(
+            [cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are " \
+                                                                                "invalid "
 
     label_scores = []
     for label_score in metrics:
         score = float(label_score.split(',')[1])
-        if np.isnan(score):
-            score = 0.0
-        label_scores.append(score)
+        score = 0.0 if np.isnan(score) else score
+
+        if list_of_desired_classes:
+            label = label_score.split(',')[0].split('AP@0.5IOU/')[-1]
+            if label in list_of_desired_classes:
+                label_scores.append(score)
+        else:
+            label_scores.append(score)
     return np.mean(label_scores)
 
 
@@ -372,11 +393,11 @@ def reduce_number_of_classes(annotations_df, list_of_desired_classes, mappings_f
     if not all([cls.startswith('/') for cls in list_of_desired_classes]):
         list_of_desired_classes = [names2codes.get(cls_name, 'notfound') for cls_name in list_of_desired_classes]
 
-    assert all([cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are "\
+    assert all([cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are " \
                                                                                    "invalid "
     subset_df = annotations_df[annotations_df.LabelName.isin(list_of_desired_classes)]
 
-    assert not subset_df.empty, "There is not enough data left after filtering for {} classes. This can happen when a "\
+    assert not subset_df.empty, "There is not enough data left after filtering for {} classes. This can happen when a " \
                                 "small sample is used"
 
     return subset_df.reset_index(drop=True)

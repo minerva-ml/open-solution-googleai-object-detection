@@ -1,9 +1,10 @@
-import json
 import os
 import shutil
 
 import pandas as pd
 import numpy as np
+import math
+
 from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
 from .utils import NeptuneContext, competition_metric_evaluation, generate_list_chunks, get_img_ids_from_folder, \
@@ -49,7 +50,8 @@ def train(pipeline_name, dev_mode):
                                                             PARAMS.class_mappings_filepath)
 
         img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
-        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)].reset_index(drop=True)
+        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)].reset_index(
+            drop=True)
 
     if PARAMS.default_valid_ids:
         if valid_ids_data.shape[0] < PARAMS.validation_sample_size:
@@ -58,7 +60,7 @@ def train(pipeline_name, dev_mode):
                                                     a_max=valid_ids_data.shape[0])
 
         valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
-        valid_img_ids = set(valid_ids_data[ID_COLUMN].tolist())
+        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
         train_img_ids = list(set(annotations[ID_COLUMN].values) - valid_img_ids)
     else:
         raise NotImplementedError
@@ -102,8 +104,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
-        valid_img_ids = set(valid_ids_data[ID_COLUMN].tolist())
-
+        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
     else:
         raise NotImplementedError
 
@@ -120,25 +121,30 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
     prediction_filepath = os.path.join(PARAMS.experiment_dir, 'evaluation_prediction.csv')
     prediction.to_csv(prediction_filepath, index=None)
 
-    LOGGER.info('Calculating mean average precision')
-    validation_annotations = annotations[annotations[ID_COLUMN].isin(valid_img_ids)]
-    validation_annotations_human_labels = annotations_human_labels[
-        annotations_human_labels[ID_COLUMN].isin(valid_img_ids)]
-    validation_annotations_filepath = os.path.join(PARAMS.experiment_dir, 'validation_annotations.csv')
-    validation_annotations.to_csv(validation_annotations_filepath, index=None)
-    validation_annotations_human_labels_filepath = os.path.join(PARAMS.experiment_dir,
-                                                                'validation_annotations_human_labels.csv')
+    if prediction.empty:
+        LOGGER.info('Background predicted for all the images. Metric cannot be calculated')
+    else:
+        LOGGER.info('Calculating mean average precision')
+        validation_annotations = annotations[annotations[ID_COLUMN].isin(valid_img_ids)]
+        validation_annotations_human_labels = annotations_human_labels[
+            annotations_human_labels[ID_COLUMN].isin(valid_img_ids)]
+        validation_annotations_filepath = os.path.join(PARAMS.experiment_dir, 'validation_annotations.csv')
+        validation_annotations.to_csv(validation_annotations_filepath, index=None)
+        validation_annotations_human_labels_filepath = os.path.join(PARAMS.experiment_dir,
+                                                                    'validation_annotations_human_labels.csv')
 
-    validation_annotations_human_labels.to_csv(validation_annotations_human_labels_filepath, index=None)
-    metrics_filepath = os.path.join(PARAMS.experiment_dir, 'validation_metrics')
-    mean_average_precision = competition_metric_evaluation(annotation_filepath=validation_annotations_filepath,
-                                                           annotations_human_labels_filepath=validation_annotations_human_labels_filepath,
-                                                           prediction_filepath=prediction_filepath,
-                                                           label_hierarchy_filepath=PARAMS.bbox_hierarchy_filepath,
-                                                           metrics_filepath=metrics_filepath
-                                                           )
-    LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
-    CTX.channel_send('MAP', 0, mean_average_precision)
+        validation_annotations_human_labels.to_csv(validation_annotations_human_labels_filepath, index=None)
+        metrics_filepath = os.path.join(PARAMS.experiment_dir, 'validation_metrics')
+        mean_average_precision = competition_metric_evaluation(annotation_filepath=validation_annotations_filepath,
+                                                               annotations_human_labels_filepath=validation_annotations_human_labels_filepath,
+                                                               prediction_filepath=prediction_filepath,
+                                                               label_hierarchy_filepath=PARAMS.bbox_hierarchy_filepath,
+                                                               metrics_filepath=metrics_filepath,
+                                                               list_of_desired_classes=DESIRED_CLASS_SUBSET,
+                                                               mappings_filepath=PARAMS.class_mappings_filepath
+                                                               )
+        LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
+        CTX.channel_send('MAP', 0, mean_average_precision)
 
 
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
@@ -192,8 +198,10 @@ def _generate_prediction(img_ids, pipeline):
 
 
 def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
+    chunk_nr = int(math.ceil(len(img_ids) / chunk_size))
     predictions = []
-    for img_ids_chunk in generate_list_chunks(img_ids, chunk_size):
+    for i, img_ids_chunk in enumerate(generate_list_chunks(img_ids, chunk_size)):
+        LOGGER.info('Processing chunk {}/{}'.format(i, chunk_nr))
         data = {'input': {'img_ids': img_ids_chunk
                           },
                 'metadata': {'annotations': None,
@@ -208,4 +216,3 @@ def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
 
     predictions = pd.concat(predictions)
     return predictions
-

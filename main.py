@@ -10,21 +10,6 @@ def main():
 
 
 @main.command()
-@click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
-def prepare_masks(dev_mode):
-    pipeline_manager.prepare_masks(dev_mode)
-
-
-@main.command()
-@click.option('-tr', '--train_data', help='calculate for train data', is_flag=True, required=False)
-@click.option('-val', '--valid_data', help='calculate for validation data', is_flag=True, required=False)
-@click.option('-te', '--test_data', help='calculate for test data', is_flag=True, required=False)
-@click.option('-pub', '--public_paths', help='use public Neptune paths', is_flag=True, required=False)
-def prepare_metadata(train_data, valid_data, test_data, public_paths):
-    pipeline_manager.prepare_metadata(train_data, valid_data, test_data, public_paths)
-
-
-@main.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 def train(pipeline_name, dev_mode):
