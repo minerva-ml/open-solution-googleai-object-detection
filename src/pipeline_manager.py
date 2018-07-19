@@ -60,7 +60,7 @@ def train(pipeline_name, dev_mode):
                                                     a_max=valid_ids_data.shape[0])
 
         valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
-        valid_img_ids = valid_ids_data[ID_COLUMN].unique().tolist()
+        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
         train_img_ids = list(set(annotations[ID_COLUMN].values) - valid_img_ids)
     else:
         raise NotImplementedError
@@ -104,8 +104,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
-        valid_img_ids = valid_ids_data[ID_COLUMN].unique().tolist()
-
+        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
     else:
         raise NotImplementedError
 
