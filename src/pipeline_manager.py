@@ -49,7 +49,8 @@ def train(pipeline_name, dev_mode):
                                                             PARAMS.class_mappings_filepath)
 
         img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
-        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)].reset_index(drop=True)
+        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)].reset_index(
+            drop=True)
 
     if PARAMS.default_valid_ids:
         if valid_ids_data.shape[0] < PARAMS.validation_sample_size:
@@ -58,7 +59,7 @@ def train(pipeline_name, dev_mode):
                                                     a_max=valid_ids_data.shape[0])
 
         valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
-        valid_img_ids = set(valid_ids_data[ID_COLUMN].tolist())
+        valid_img_ids = valid_ids_data[ID_COLUMN].unique().tolist()
         train_img_ids = list(set(annotations[ID_COLUMN].values) - valid_img_ids)
     else:
         raise NotImplementedError
@@ -102,7 +103,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 
     if PARAMS.default_valid_ids:
         valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
-        valid_img_ids = set(valid_ids_data[ID_COLUMN].tolist())
+        valid_img_ids = valid_ids_data[ID_COLUMN].unique().tolist()
 
     else:
         raise NotImplementedError
@@ -135,7 +136,9 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
                                                            annotations_human_labels_filepath=validation_annotations_human_labels_filepath,
                                                            prediction_filepath=prediction_filepath,
                                                            label_hierarchy_filepath=PARAMS.bbox_hierarchy_filepath,
-                                                           metrics_filepath=metrics_filepath
+                                                           metrics_filepath=metrics_filepath,
+                                                           list_of_desired_classes=DESIRED_CLASS_SUBSET,
+                                                           mappings_filepath=PARAMS.class_mappings_filepath
                                                            )
     LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
     CTX.channel_send('MAP', 0, mean_average_precision)
