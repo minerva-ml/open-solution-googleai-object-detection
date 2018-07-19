@@ -96,12 +96,14 @@ def parameter_eval(param):
 
 def get_img_ids_from_folder(dirpath, n_ids=None):
     ids = []
-    for i, filepath in enumerate(glob.glob('{}/*'.format(dirpath))):
+    for i, filepath in enumerate(sorted(glob.glob('{}/*'.format(dirpath)))):
         idx = os.path.basename(filepath).split('.')[0]
         ids.append(idx)
 
         if n_ids == i:
             break
+        # print(filepath, idx)
+        # exit()
     return ids
 
 
@@ -329,15 +331,15 @@ def submission_formatting(submission):
     for i, row in submission.iterrows():
         image_id = row.ImageId
         prediction = row.PredictionString
-        for pred in chunker(prediction.split(), 5):
-            label, x_min, y_min, x_max, y_max = pred
+        for pred in chunker(prediction.split(), 6):
+            label, score, x_min, y_min, x_max, y_max = pred
             prediction_formatted.setdefault('ImageID', []).append(image_id)
             prediction_formatted.setdefault('LabelName', []).append(label)
             prediction_formatted.setdefault('XMin', []).append(x_min)
             prediction_formatted.setdefault('YMin', []).append(y_min)
             prediction_formatted.setdefault('XMax', []).append(x_max)
             prediction_formatted.setdefault('YMax', []).append(y_max)
-            prediction_formatted.setdefault('Score', []).append(1.0)
+            prediction_formatted.setdefault('Score', []).append(score)
     prediction_formatted = pd.DataFrame(prediction_formatted)
     return prediction_formatted
 
@@ -401,3 +403,10 @@ def reduce_number_of_classes(annotations_df, list_of_desired_classes, mappings_f
                                 "small sample is used"
 
     return subset_df.reset_index(drop=True)
+
+
+def add_missing_image_ids(submission, sample_submission):
+    submission['ImageId'] = submission['ImageId'].astype(str)
+    sample_submission['ImageId'] = sample_submission['ImageId'].astype(str)
+    fixed_submission = pd.merge(sample_submission[['ImageId']], submission, on=['ImageId'], how='outer')
+    return fixed_submission
