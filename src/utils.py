@@ -192,11 +192,11 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
-def generate_data_frame_chunks(meta, chunk_size):
-    n_rows = meta.shape[0]
-    chunk_nr = math.ceil(n_rows / chunk_size)
+def generate_list_chunks(meta, chunk_size):
+    n_rows = len(meta)
+    chunk_nr = int(math.ceil(n_rows / chunk_size))
     for i in tqdm(range(chunk_nr)):
-        meta_chunk = meta.iloc[i * chunk_size:(i + 1) * chunk_size]
+        meta_chunk = meta[i * chunk_size:(i + 1) * chunk_size]
         yield meta_chunk
 
 
