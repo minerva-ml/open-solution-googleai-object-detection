@@ -8,7 +8,7 @@ import math
 from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
 from .utils import NeptuneContext, competition_metric_evaluation, generate_list_chunks, get_img_ids_from_folder, \
-    init_logger, reduce_number_of_classes, set_seed, submission_formatting
+    init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids
 
 LOGGER = init_logger()
 CTX = NeptuneContext()
@@ -158,11 +158,12 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(test_img_ids, pipeline, chunk_size)
 
-    submission = prediction
+    sample_submission = pd.read_csv(PARAMS.sample_submission)
+    prediction = add_missing_image_ids(prediction, sample_submission)
     submission_filepath = os.path.join(PARAMS.experiment_dir, 'submission.csv')
-    submission.to_csv(submission_filepath, index=None)
+    prediction.to_csv(submission_filepath, index=None)
     LOGGER.info('submission saved to {}'.format(submission_filepath))
-    LOGGER.info('submission head \n\n{}'.format(submission.head()))
+    LOGGER.info('submission head \n\n{}'.format(prediction.head()))
 
     if submit_predictions:
         make_submission(submission_filepath)

@@ -29,6 +29,7 @@ parameters:
   annotations_human_labels_filepath: ''
   bbox_hierarchy_filepath: ''
   valid_ids_filepath: ''
+  sample_submission: ''
   experiment_dir:  ''
   class_mappings_filepath: ''
 
