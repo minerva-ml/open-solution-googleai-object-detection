@@ -1,9 +1,10 @@
-import json
 import os
 import shutil
 
 import pandas as pd
 import numpy as np
+import math
+
 from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
 from .utils import NeptuneContext, competition_metric_evaluation, generate_list_chunks, get_img_ids_from_folder, \
@@ -195,8 +196,10 @@ def _generate_prediction(img_ids, pipeline):
 
 
 def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
+    chunk_nr = int(math.ceil(len(img_ids) / chunk_size))
     predictions = []
-    for img_ids_chunk in generate_list_chunks(img_ids, chunk_size):
+    for i, img_ids_chunk in enumerate(generate_list_chunks(img_ids, chunk_size)):
+        LOGGER.info('Processing chunk {}/{}'.format(i, chunk_nr))
         data = {'input': {'img_ids': img_ids_chunk
                           },
                 'metadata': {'annotations': None,
@@ -211,4 +214,3 @@ def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
 
     predictions = pd.concat(predictions)
     return predictions
-
