@@ -122,7 +122,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
     prediction.to_csv(prediction_filepath, index=None)
 
     if prediction.empty:
-        LOGGER.info('Background predicted for all the classes. Metric cannot be calculated')
+        LOGGER.info('Background predicted for all the images. Metric cannot be calculated')
     else:
         LOGGER.info('Calculating mean average precision')
         validation_annotations = annotations[annotations[ID_COLUMN].isin(valid_img_ids)]
