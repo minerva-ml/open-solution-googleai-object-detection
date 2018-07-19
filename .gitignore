@@ -114,3 +114,7 @@ ENV/
 
 # Working directories
 examples/cache/
+configs/neptune_config_local.yaml
+notebooks/local_playground.ipynb
+configs/neptune_config_home.yaml
+configs/neptune_config_cluster.yaml
