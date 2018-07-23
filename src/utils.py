@@ -1,4 +1,5 @@
 import glob
+import io
 import logging
 import math
 import os
@@ -8,7 +9,10 @@ import subprocess
 import sys
 from collections import Iterable
 from itertools import chain
+from itertools import cycle
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -410,3 +414,91 @@ def add_missing_image_ids(submission, sample_submission):
     sample_submission['ImageId'] = sample_submission['ImageId'].astype(str)
     fixed_submission = pd.merge(sample_submission[['ImageId']], submission, on=['ImageId'], how='outer')
     return fixed_submission
+
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
+def figure2img(f):
+    """
+    Converts a Matplotlib plot into a PNG image.
+    Parameters
+    ----------
+    f: Matplotlib plot
+        Plot to convert
+    Returns
+    -------
+    Image
+        PNG Image
+    """
+
+    buf = io.BytesIO()
+    f.savefig(buf, bbox_inches='tight', pad_inches=0)
+    buf.seek(0)
+    im = Image.open(buf)
+    return im
+
+
+def visualize_bboxes(image, dfdetections, threshold=0.1, return_format='PIL'):
+    """
+    Parameters
+    ----------
+    image PIL Image or np.array(im_cols, rows, 3)
+    dfdetections: pd.DataFrame containing data about bboxes using the following format:
+    columns=['class_id','class_name','score','x1','y1','x2','y2'] each row is one bbox.
+    threshold: detection trheshold
+    return_format PIL or NP
+    Returns
+    -------
+    """
+
+    if not all(x in dfdetections.columns for x in ['class_id', 'class_name', 'score', 'x1', 'y1', 'x2', 'y2']):
+        raise ValueError('The dataframe format is not correct')
+
+    if not isinstance(image, np.ndarray):
+        # othweriwse assume PIL
+        image = np.array(image)
+
+    cycol = cycle('bgrcmk')
+    detection_figure = plt.figure(frameon=False)
+    dpi = mpl.rcParams['figure.dpi']
+
+    imrows, imcols = image.shape[0], image.shape[1]
+    detection_figure.set_size_inches((imrows / dpi) * 1.5, (imcols / dpi) * 1.5)
+    current_axis = plt.Axes(detection_figure, [0., 0., 1., 1.])
+    current_axis.set_axis_off()
+    detection_figure.add_axes(current_axis)
+    current_axis.imshow(image)
+
+    # filter by score
+    dfdetections = dfdetections[dfdetections.score > threshold]
+
+    for i, row in dfdetections.iterrows():
+        label = '{0} {1:.2f}'.format(row.class_name, row.score)
+        color = next(cycol)
+        line = 4
+        current_axis.add_patch(
+            plt.Rectangle((row.x1, row.y1),
+                          row.x2 - row.x1,
+                          row.y2 - row.y1,
+                          color=color,
+                          fill=False, linewidth=line))
+
+        current_axis.text(row.x1, row.y1, label, size='x-large', color='white',
+                          bbox={'facecolor': color, 'alpha': 1.0})
+
+    current_axis.get_xaxis().set_visible(False)
+    current_axis.get_yaxis().set_visible(False)
+    plt.close()
+
+    if return_format == 'PIL':
+        return figure2img(detection_figure)
+
+    elif return_format == 'NP':
+        return np.array(figure2img(detection_figure))[:, :, :3]
+
+    else:
+        return detection_figure

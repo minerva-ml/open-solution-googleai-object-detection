@@ -7,11 +7,11 @@ from .loaders import ImageDetectionLoader
 from .steppy_dev.base import Step
 from .models import Retina
 from .retinanet import DataDecoder
-from .postprocessing import PredictionFormatter
+from .postprocessing import PredictionFormatter, Visualizer
 from .preprocessing import GoogleAiLabelEncoder, GoogleAiLabelDecoder
 
 
-def retinanet(config, train_mode):
+def retinanet(config, train_mode, visualize=False):
     persist_output = False
     load_persisted_output = False
 
@@ -27,6 +27,9 @@ def retinanet(config, train_mode):
 
     if train_mode:
         return retinanet
+
+    if visualize:
+        return visualizer(retinanet, loader.get_step('label_encoder'), config)
 
     postprocessor = postprocessing(retinanet, loader.get_step('label_encoder'), config)
 
@@ -75,6 +78,29 @@ def preprocessing_generator(config, is_train):
     return loader
 
 
+def visualizer(model, label_encoder, config):
+    label_decoder = Step(name='label_decoder',
+                         transformer=GoogleAiLabelDecoder(),
+                         input_steps=[label_encoder, ],
+                         experiment_directory=config.env.cache_dirpath)
+
+    decoder = Step(name='decoder',
+                   transformer=DataDecoder(**config.postprocessing.data_decoder),
+                   input_steps=[model, ],
+                   experiment_directory=config.env.cache_dirpath)
+
+    visualize = Step(name='visualizer',
+                     transformer=Visualizer(**config.postprocessing.prediction_formatter),
+                     input_steps=[label_decoder, decoder],
+                     input_data=['input'],
+                     adapter=Adapter({'image_ids': E('input', 'img_ids'),
+                                      'results': E(decoder.name, 'results'),
+                                      'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
+                     experiment_directory=config.env.cache_dirpath)
+
+    return visualize
+
+
 def postprocessing(model, label_encoder, config):
     label_decoder = Step(name='label_decoder',
                          transformer=GoogleAiLabelDecoder(),
@@ -99,5 +125,7 @@ def postprocessing(model, label_encoder, config):
 
 PIPELINES = {'retinanet': {'train': partial(retinanet, train_mode=True),
                            'inference': partial(retinanet, train_mode=False),
+                           'visualize': partial(retinanet, train_mode=False, visualize=True)
                            },
+
              }
