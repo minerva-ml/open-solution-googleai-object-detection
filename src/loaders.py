@@ -130,7 +130,7 @@ class ImageDetectionLoader(BaseTransformer):
             flow, steps = self.get_datagen(ids, annotations, annotations_human_labels, True,
                                            self.loader_params.training)
         else:
-            flow, steps = self.get_datagen(ids, None, None, False, self.loader_params.training)
+            flow, steps = self.get_datagen(ids, None, None, False, self.loader_params.inference)
 
         if valid_ids is not None:
             valid_flow, valid_steps = self.get_datagen(valid_ids, annotations, annotations_human_labels, False,
