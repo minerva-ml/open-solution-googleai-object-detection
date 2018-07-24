@@ -1,10 +1,9 @@
 from functools import partial
 
-from steppy.base import IdentityOperation
+from steppy.base import Step, IdentityOperation
 from steppy.adapter import Adapter, E
 
 from .loaders import ImageDetectionLoader
-from .steppy_dev.base import Step
 from .models import Retina
 from .retinanet import DataDecoder
 from .postprocessing import PredictionFormatter, Visualizer
