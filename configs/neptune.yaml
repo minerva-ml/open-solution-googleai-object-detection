@@ -34,9 +34,9 @@ parameters:
   class_mappings_filepath: ''
 
 # Execution
-  clean_experiment_directory_before_training: 1
-  num_workers: 4
-  num_threads: 4
+  clean_experiment_directory_before_training: 0
+  num_workers: 8
+  num_threads: 8
   load_in_memory: 0
   pin_memory: 1
   default_valid_ids: 1
@@ -47,8 +47,8 @@ parameters:
   kaggle_message: 'solution-1'
 
 # General parameters
-  image_h: 512
-  image_w: 512
+  image_h: 256
+  image_w: 256
   image_channels: 3
   pad_method: 'resize'
 
@@ -61,17 +61,17 @@ parameters:
   scale_ratios: '[1., pow(2,1/3.), pow(2,2/3.)]'
 
 # Training schedule
-  epochs_nr: 100
-  batch_size_train: 8
-  batch_size_inference: 8
+  epochs_nr: 1000
+  batch_size_train: 16
+  batch_size_inference: 48
   lr: 0.0005
   momentum: 0.9
   gamma: 1.0
-  patience: 30
+  patience: 5
   lr_factor: 0.3
   lr_patience: 30
-  training_sample_size: 50000
-  validation_sample_size: 10000
+  training_sample_size: 10000
+  validation_sample_size: 1000
 
 # Regularization
   use_batch_norm: 1
