@@ -382,7 +382,7 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
           boxes: (tensor) decode box locations, sized [#obj,4].
           labels: (tensor) class labels for each box, sized [#obj,].
         """
-        CLS_THRESH = 0.05
+        CLS_THRESH = 0.5
         NMS_THRESH = 0.5
 
         input_size = torch.Tensor([input_size, input_size]) if isinstance(input_size, int) \
