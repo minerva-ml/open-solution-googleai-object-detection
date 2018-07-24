@@ -13,7 +13,9 @@ LABEL_COLUMN = 'LabelName'
 SEED = 1234
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
-DESIRED_CLASS_SUBSET = None  # ["Person", "Car", "Dress", "Footwear"]
+
+DESIRED_CLASS_SUBSET = []
+N_SUB_CLASSES = len(DESIRED_CLASS_SUBSET)
 
 ASPECT_RATIOS = parameter_eval(params.aspect_ratios)
 SCALE_RATIOS = parameter_eval(params.scale_ratios)
@@ -21,7 +23,7 @@ SCALE_RATIOS = parameter_eval(params.scale_ratios)
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
                  'num_workers': params.num_workers,
-                 'num_classes': 2,
+                 'num_classes': N_SUB_CLASSES if N_SUB_CLASSES else params.num_classes,
                  'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
@@ -58,7 +60,9 @@ SOLUTION_CONFIG = AttrDict({
 
     'retinanet': {
         'architecture_config': {'model_params': {'encoder_depth': params.encoder_depth,
-                                                 'num_classes': params.num_classes,
+                                                 'num_classes': N_SUB_CLASSES if N_SUB_CLASSES else params.num_classes,
+                                                 # we change the model output size if subclasses used
+                                                 # fallback to config file
                                                  'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS),
                                                  'pretrained_encoder': params.pretrained_encoder
                                                  },

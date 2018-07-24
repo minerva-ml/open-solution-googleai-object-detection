@@ -1,9 +1,12 @@
 import os
 import shutil
 
+from deepsense import neptune
 import pandas as pd
 import numpy as np
 import math
+import cv2
+from PIL import Image
 
 from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, LABEL_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
@@ -28,6 +31,10 @@ class PipelineManager:
 
     def make_submission(self, submission_filepath):
         make_submission(submission_filepath)
+
+    def visualize(self, pipeline_name, image_dir=None, single_image=None, n_files=16, show_popups=False):
+        visualize(pipeline_name=pipeline_name, image_dir=image_dir, single_image=single_image, n_files=n_files,
+                  show_popups=show_popups)
 
 
 def train(pipeline_name, dev_mode):
@@ -55,9 +62,9 @@ def train(pipeline_name, dev_mode):
 
     if PARAMS.default_valid_ids:
         if valid_ids_data.shape[0] < PARAMS.validation_sample_size:
-            LOGGER.warning("Validation sample-size is smaller then desired validation sample size ... clipping")
+            LOGGER.warning("Validation sample-size is smaller then desired validation safmple size ... clipping")
             PARAMS.validation_sample_size = np.clip(PARAMS.validation_sample_size,
-                                                    a_max=valid_ids_data.shape[0])
+                                                    a_max=valid_ids_data.shape[0], a_min=0)
 
         valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
         valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
@@ -173,6 +180,42 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
 
     if submit_predictions:
         make_submission(submission_filepath)
+
+
+def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show_popups=False):
+    if image_dir:
+        SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = image_dir
+    else:
+        SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.test_imgs_dir
+
+    if single_image:
+        raise NotImplemented
+
+    test_img_ids = get_img_ids_from_folder(SOLUTION_CONFIG['loader']['dataset_params']['images_dir'], n_ids=n_files)
+    pipeline = PIPELINES[pipeline_name]['visualize'](SOLUTION_CONFIG)
+
+    data = {'input': {'img_ids': test_img_ids
+                      },
+            'metadata': {'annotations': None,
+                         'annotations_human_labels': None
+                         }
+            }
+
+    images = pipeline.fit_transform(data)
+    for img in images[0]:
+        basewidth = 600
+        wpercent = (basewidth / float(img.size[0]))
+        hsize = int((float(img.size[1]) * float(wpercent)))
+        img = img.resize((basewidth, hsize), Image.ANTIALIAS) # we have to make them smaller bc of neptune limitations
+        CTX.channel_send("my_image_channel", neptune.Image(
+            name="image’s name",
+            description="this image depicts a cat",
+            data=img))
+
+        if show_popups:
+            cv2.imshow('sample image', cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
+            cv2.waitKey(0)  # waits until a key is pressed
+            cv2.destroyAllWindows()  # destroys the window showing image
 
 
 def make_submission(submission_filepath):
