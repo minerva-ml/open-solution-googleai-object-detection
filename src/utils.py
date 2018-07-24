@@ -442,12 +442,12 @@ def figure2img(f):
     return im
 
 
-def visualize_bboxes(image, dfdetections, threshold=0.1, return_format='PIL'):
+def visualize_bboxes(image, detections_df, threshold=0.1, return_format='PIL'):
     """
     Parameters
     ----------
     image PIL Image or np.array(im_cols, rows, 3)
-    dfdetections: pd.DataFrame containing data about bboxes using the following format:
+    detections_df: pd.DataFrame containing data about bboxes using the following format:
     columns=['class_id','class_name','score','x1','y1','x2','y2'] each row is one bbox.
     threshold: detection trheshold
     return_format PIL or NP
@@ -455,7 +455,7 @@ def visualize_bboxes(image, dfdetections, threshold=0.1, return_format='PIL'):
     -------
     """
 
-    if not all(x in dfdetections.columns for x in ['class_id', 'class_name', 'score', 'x1', 'y1', 'x2', 'y2']):
+    if not all(x in detections_df.columns for x in ['class_id', 'class_name', 'score', 'x1', 'y1', 'x2', 'y2']):
         raise ValueError('The dataframe format is not correct')
 
     if not isinstance(image, np.ndarray):
@@ -474,9 +474,9 @@ def visualize_bboxes(image, dfdetections, threshold=0.1, return_format='PIL'):
     current_axis.imshow(image)
 
     # filter by score
-    dfdetections = dfdetections[dfdetections.score > threshold]
+    detections_df = detections_df[detections_df.score > threshold]
 
-    for i, row in dfdetections.iterrows():
+    for i, row in detections_df.iterrows():
         label = '{0} {1:.2f}'.format(row.class_name, row.score)
         color = next(cycol)
         line = 4

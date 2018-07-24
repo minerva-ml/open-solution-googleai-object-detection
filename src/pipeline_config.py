@@ -2,7 +2,7 @@ import os
 
 from attrdict import AttrDict
 
-from .utils import NeptuneContext, parameter_eval
+from .utils import NeptuneContext, parameter_eval, get_class_mappings
 
 neptune_ctx = NeptuneContext()
 params = neptune_ctx.params
@@ -19,6 +19,9 @@ N_SUB_CLASSES = len(DESIRED_CLASS_SUBSET)
 
 ASPECT_RATIOS = parameter_eval(params.aspect_ratios)
 SCALE_RATIOS = parameter_eval(params.scale_ratios)
+
+CODES2NAMES, NAMES2CODES = get_class_mappings(mappings_file=params.class_mappings_filepath)
+
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,

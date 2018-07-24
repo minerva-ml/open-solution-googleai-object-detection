@@ -1,15 +1,13 @@
+import os
+
+import PIL
 import numpy as np
 import pandas as pd
 from steppy.base import BaseTransformer
 
 from src.logging import LOGGER
-from .pipeline_config import params
-from .utils import visualize_bboxes, get_class_mappings
-import os
-import PIL
-import numpy as np
-
-codes2names, names2codes = get_class_mappings(mappings_file=params.class_mappings_filepath)
+from .pipeline_config import CODES2NAMES, SOLUTION_CONFIG, params
+from .utils import visualize_bboxes
 
 
 class PredictionFormatter(BaseTransformer):
@@ -54,19 +52,16 @@ class Visualizer(BaseTransformer):
         self.image_size = image_size
 
     def transform(self, image_ids, results, decoder_dict):
-
         decoder_dict = decoder_dict
-        image_dir = params.train_imgs_dir
-
-        all_detections = []
-        all_box = []
+        all_detections, all_boxes = [], []
         for i, (image_id, detections) in enumerate(zip(image_ids, results)):
             if not bool(detections[0].size()):
                 continue
             LOGGER.info("Drawing boxes on image {}/{}".format(i, len(results)))
-            image = PIL.Image.open(os.path.join(image_dir, image_id + '.jpg'))
-            h, w = self.image_size  # resize size
-            width, heighth = image.size  # original image size
+            image = PIL.Image.open(
+                os.path.join(SOLUTION_CONFIG['loader']['dataset_params']['images_dir'], image_id + '.jpg'))
+            h, w = self.image_size  # s resize size
+            width, height = image.size  # original image size
             box = detections[0].numpy()
             classes = detections[1].numpy()
             scores = detections[2].numpy()
@@ -74,23 +69,21 @@ class Visualizer(BaseTransformer):
             df = pd.DataFrame(np.column_stack([box, classes, scores]))
             df.columns = ['x1', 'y1', 'x2', 'y2', 'class_id', 'score']
             df['class_name'] = df.class_id.map(decoder_dict)
-            df.class_name = df.class_name.map(codes2names)
+            df.class_name = df.class_name.map(CODES2NAMES)
 
             # revert resize
-
             df.x1 = df.x1 / h
             df.y1 = df.y1 / w
             df.x2 = df.x2 / h
             df.y2 = df.y2 / w
 
             # to absolute
-
             df['x1'] = df['x1'] * width
             df['x2'] = df['x2'] * width
-            df['y1'] = df['y1'] * heighth
-            df['y2'] = df['y2'] * heighth
+            df['y1'] = df['y1'] * height
+            df['y2'] = df['y2'] * height
 
             pil_image_detections = visualize_bboxes(image, df)
             all_detections.append(pil_image_detections)
-            all_box.append(box)
-        return all_detections, all_box
+            all_boxes.append(box)
+        return all_detections
