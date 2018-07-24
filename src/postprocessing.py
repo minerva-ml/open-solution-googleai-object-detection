@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from steppy.base import BaseTransformer
 
@@ -39,10 +40,10 @@ class PredictionFormatter(BaseTransformer):
     def _get_bbox_relative(self, bbox):
         h = self.image_size[0]
         w = self.image_size[1]
-        x_min = max(0.0, bbox[0] / h)
-        y_min = max(0.0, bbox[1] / w)
-        x_max = min(1.0, bbox[2] / h)
-        y_max = min(1.0, bbox[3] / w)
+        x_min = np.clip(bbox[0] / h, 0.0, 1.0)
+        y_min = np.clip(bbox[1] / w, 0.0, 1.0)
+        x_max = np.clip(bbox[2] / h, 0.0, 1.0)
+        y_max = np.clip(bbox[3] / w, 0.0, 1.0)
         result = [x_min, y_min, x_max, y_max]
         return [str(r) for r in result]
 

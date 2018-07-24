@@ -1,14 +1,14 @@
 import os
 import shutil
 
+from deepsense import neptune
 import pandas as pd
 import numpy as np
 import math
 import cv2
 from PIL import Image
 
-from deepsense import neptune
-from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, SEED, SOLUTION_CONFIG
+from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, LABEL_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
 from .utils import NeptuneContext, competition_metric_evaluation, generate_list_chunks, get_img_ids_from_folder, \
     init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids
@@ -116,7 +116,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
         raise NotImplementedError
 
     if dev_mode:
-        valid_img_ids = valid_img_ids[:20]
+        valid_img_ids = valid_img_ids[:96]
 
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
@@ -139,15 +139,21 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
         validation_annotations.to_csv(validation_annotations_filepath, index=None)
         validation_annotations_human_labels_filepath = os.path.join(PARAMS.experiment_dir,
                                                                     'validation_annotations_human_labels.csv')
-
         validation_annotations_human_labels.to_csv(validation_annotations_human_labels_filepath, index=None)
         metrics_filepath = os.path.join(PARAMS.experiment_dir, 'validation_metrics')
+
+        if dev_mode:
+            class_subset = annotations[annotations[ID_COLUMN].isin(valid_img_ids)][
+                LABEL_COLUMN].unique().tolist()
+        else:
+            class_subset = DESIRED_CLASS_SUBSET
+
         mean_average_precision = competition_metric_evaluation(annotation_filepath=validation_annotations_filepath,
                                                                annotations_human_labels_filepath=validation_annotations_human_labels_filepath,
                                                                prediction_filepath=prediction_filepath,
                                                                label_hierarchy_filepath=PARAMS.bbox_hierarchy_filepath,
                                                                metrics_filepath=metrics_filepath,
-                                                               list_of_desired_classes=DESIRED_CLASS_SUBSET,
+                                                               list_of_desired_classes=class_subset,
                                                                mappings_filepath=PARAMS.class_mappings_filepath
                                                                )
         LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
