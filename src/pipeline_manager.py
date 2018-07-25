@@ -201,17 +201,13 @@ def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show
                          }
             }
 
-    images = pipeline.fit_transform(data)
-    for img in images[0]:
+    images_with_drawn_boxes = pipeline.fit_transform(data)
+    for img in images_with_drawn_boxes:
         basewidth = 600
         wpercent = (basewidth / float(img.size[0]))
         hsize = int((float(img.size[1]) * float(wpercent)))
-        img = img.resize((basewidth, hsize), Image.ANTIALIAS) # we have to make them smaller bc of neptune limitations
-        CTX.channel_send("my_image_channel", neptune.Image(
-            name="image’s name",
-            description="this image depicts a cat",
-            data=img))
-
+        img = img.resize((basewidth, hsize), Image.ANTIALIAS)  # we have to make them smaller bc of neptune limitations
+        CTX.channel_send("my_image_channel", neptune.Image(name="", description="", data=img))
         if show_popups:
             cv2.imshow('sample image', cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
             cv2.waitKey(0)  # waits until a key is pressed
