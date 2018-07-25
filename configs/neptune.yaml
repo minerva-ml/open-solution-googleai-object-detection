@@ -79,3 +79,7 @@ parameters:
   l2_reg_dense: 0.0
   dropout_conv: 0.1
   dropout_dense: 0.0
+
+# Postprocessing
+  classification_threshold: 0.05
+  nms_threshold: 0.5
