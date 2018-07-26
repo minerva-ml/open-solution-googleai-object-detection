@@ -10,8 +10,14 @@ import sys
 from collections import Iterable, defaultdict
 from itertools import chain
 from itertools import cycle
+import multiprocessing as mp
+from functools import partial
 
 import matplotlib as mpl
+if os.environ.get('DISPLAY', '') == '':
+    print('no display found. Using non-interactive Agg backend')
+    mpl.use('Agg')
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -512,13 +518,28 @@ def visualize_bboxes(image, detections_df, threshold=0.1, return_format='PIL'):
         return detection_figure
 
 
-def get_image_aspect_ratio(image_path):
+def _get_image_aspect_ratio(image_path):
     im = Image.open(image_path)
     h, w = im.size
     return h/w
 
 
-def generate_metadata(train_image_ids=None, train_image_dir=None,
+def _get_image_metadata(imgId, image_dir, is_train, is_valid, is_test):
+    print(imgId)
+    data = {}
+    data['ImageID'].append(imgId)
+    image_path = os.path.join(image_dir, imgId + '.jpg')
+    data['image_path'].append(image_path)
+    data['aspect_ratio'].append(_get_image_aspect_ratio(image_path))
+    data['is_train'] = is_train
+    data['is_valid'] = is_valid
+    data['is_test'] = is_test
+
+    return data
+
+
+def generate_metadata(num_threads=10,
+                      train_image_ids=None, train_image_dir=None,
                       valid_image_ids=None, valid_image_dir=None,
                       test_image_ids=None, test_image_dir=None):
 
@@ -529,10 +550,14 @@ def generate_metadata(train_image_ids=None, train_image_dir=None,
             df_dict['ImageID'].append(imgId)
             image_path = os.path.join(image_dir, imgId + '.jpg')
             df_dict['image_path'].append(image_path)
-            df_dict['aspect_ratio'].append(get_image_aspect_ratio(image_path))
-            df_dict['is_train'] = is_train
-            df_dict['is_valid'] = is_valid
-            df_dict['is_test'] = is_test
+            df_dict['is_train'].append(is_train)
+            df_dict['is_valid'].append(is_valid)
+            df_dict['is_test'].append(is_test)
+
+        process_nr = min(num_threads, len(imageIds))
+        with mp.pool.ThreadPool(process_nr) as executor:
+            df_dict['aspect_ratio'] = list(tqdm(executor.imap(_get_image_aspect_ratio, df_dict['image_path']),
+                                                total=len(imageIds)))
 
         return pd.DataFrame.from_dict(df_dict)
 

@@ -52,7 +52,8 @@ def prepare_metadata():
     else:
         raise NotImplementedError
 
-    metadata = generate_metadata(train_image_ids=train_img_ids, train_image_dir=PARAMS.train_imgs_dir,
+    metadata = generate_metadata(num_threads=PARAMS.num_threads,
+                                 train_image_ids=train_img_ids, train_image_dir=PARAMS.train_imgs_dir,
                                  valid_image_ids=valid_img_ids, valid_image_dir=PARAMS.train_imgs_dir)
 
     metadata.to_csv(PARAMS.metadata_filepath)
@@ -101,6 +102,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
         LOGGER.info('Background predicted for all the images. Metric cannot be calculated')
     else:
         LOGGER.info('Calculating mean average precision')
+        valid_img_ids = valid_data['ImageID'].values
         validation_annotations = annotations[annotations[ID_COLUMN].isin(valid_img_ids)]
         validation_annotations_human_labels = annotations_human_labels[
             annotations_human_labels[ID_COLUMN].isin(valid_img_ids)]
