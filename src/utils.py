@@ -525,7 +525,7 @@ def generate_metadata(train_image_ids=None, train_image_dir=None,
     def _generate_metadata(imageIds, image_dir, is_train, is_valid, is_test):
 
         df_dict = defaultdict(lambda: [])
-        for imgId in imageIds:
+        for imgId in tqdm(imageIds):
             df_dict['ImageID'].append(imgId)
             image_path = os.path.join(image_dir, imgId + '.jpg')
             df_dict['image_path'].append(image_path)

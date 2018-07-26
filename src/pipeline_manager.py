@@ -52,10 +52,6 @@ def prepare_metadata():
     else:
         raise NotImplementedError
 
-    if True:
-        train_img_ids = train_img_ids[:100]
-        valid_img_ids = valid_img_ids[:20]
-
     metadata = generate_metadata(train_image_ids=train_img_ids, train_image_dir=PARAMS.train_imgs_dir,
                                  valid_image_ids=valid_img_ids, valid_image_dir=PARAMS.train_imgs_dir)
 
@@ -264,11 +260,11 @@ def _get_input_data(dev_mode=False, metadata=None):
         img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
         metadata = metadata[metadata['ImageID'].isin(img_ids_in_reduced_annotations)]
 
-    meta_train = metadata[metadata['is_train'] == 1]
-    meta_valid = metadata[metadata['is_valid'] == 1]
+    meta_train = metadata[metadata['is_train'] == 1].reset_index(drop=True)
+    meta_valid = metadata[metadata['is_valid'] == 1].reset_index(drop=True)
 
     if dev_mode:
         meta_train = meta_train.sample(100, random_state=SEED)
-        meta_valid = meta_valid.sample(2, random_state=SEED)
+        meta_valid = meta_valid.sample(20, random_state=SEED)
 
     return annotations, annotations_human_labels, meta_train, meta_valid

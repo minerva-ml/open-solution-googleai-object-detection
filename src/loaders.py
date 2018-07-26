@@ -1,4 +1,5 @@
 import os
+import random
 import torch
 from attrdict import AttrDict
 from sklearn.externals import joblib
@@ -13,12 +14,15 @@ from .pipeline_config import MEAN, STD
 
 
 class RandomSubsetSampler(Sampler):
-    def __init__(self, data_size, sample_size):
-        self.data_size = data_size
-        self.sample_size = sample_size
+    def __init__(self, images_data, sample_size):
+        self.images_data = images_data
+        self.sample_size = min(sample_size, len(self.images_data))
+
+        self.indicies = self.images_data.sort_values('aspect_ratio').index.tolist()
 
     def __iter__(self):
-        return iter(torch.randperm(self.data_size)[:self.sample_size].long())
+        subset = sorted(random.sample(range(len(self.indicies)), self.sample_size))
+        return (self.indicies[i] for i in subset)
 
     def __len__(self):
         return self.sample_size
@@ -26,7 +30,7 @@ class RandomSubsetSampler(Sampler):
 
 class ImageDetectionDataset(Dataset):
     def __init__(self, images_data, annotations, annotations_human_labels, target_encoder, train_mode,
-                 image_transform=None):
+                 short_dim, long_dim, image_transform=None):
         super().__init__()
         self.images_data = images_data
         self.annotations = annotations
@@ -34,18 +38,20 @@ class ImageDetectionDataset(Dataset):
         self.target_encoder = target_encoder
         self.train_mode = train_mode
 
+        self.short_dim = short_dim
+        self.long_dim = long_dim
         self.image_transform = image_transform
 
     def __len__(self):
         return len(self.images_data)
 
     def __getitem__(self, index):
-        Xi = self.load_from_disk(index)
 
-        Xi = self.image_transform(Xi)
+        Xi = self.load_from_disk(index)
+        Xi = self.resize_image(Xi)
 
         if self.annotations is not None:
-            _, h, w = Xi.size()
+            h, w = Xi.size
             yi = self.load_target(index, (h, w))
             return Xi, yi
         else:
@@ -81,6 +87,36 @@ class ImageDetectionDataset(Dataset):
             labels.append(label)
         return torch.FloatTensor(boxes), torch.FloatTensor(labels)
 
+    def resize_image(self, image):
+        h, w = image.size
+        x, y = min(h, w), max(h, w)     # x < y
+        if y*self.short_dim > x*self.long_dim:
+            target_x = x * self.long_dim // y
+            target_y = self.long_dim
+        else:
+            target_x = self.short_dim
+            target_y = y * self.short_dim // x
+
+        if h > w:
+            target_x, target_y = target_y, target_x
+        resize = transforms.Resize((target_x, target_y))
+
+        return resize(image)
+
+    def alling_images(self, images):
+        max_h, max_w = 0, 0
+        for image in images:
+            h, w = image.size
+            max_h, max_w = max(h, max_h), max(w, max_w)
+
+        padded_images = []
+        for image in images:
+            h, w = image.size
+            pad = transforms.Pad((0, 0, max_h - h, max_w - w), fill=255, padding_mode='constant')
+            padded_images.append(pad(image))
+
+        return padded_images
+
     def collate_fn(self, batch):
         """Encode targets.
 
@@ -93,6 +129,9 @@ class ImageDetectionDataset(Dataset):
         imgs = [x[0] for x in batch]
         boxes = [x[1][0] for x in batch]
         labels = [x[1][1] for x in batch]
+
+        imgs = self.alling_images(imgs)
+        imgs = [self.image_transform(img) for img in imgs]
 
         inputs = torch.stack(imgs)
         input_size = torch.Tensor(list(inputs.size()[-2:]))
@@ -118,10 +157,10 @@ class ImageDetectionLoader(BaseTransformer):
         self.target_encoder = DataEncoder(**self.dataset_params.data_encoder)
         self.dataset = ImageDetectionDataset
 
-        self.image_transform = transforms.Compose([transforms.Resize((self.dataset_params.h, self.dataset_params.w)),
-                                                   transforms.ToTensor(),
-                                                   transforms.Normalize(mean=MEAN, std=STD),
-                                                   ])
+        self.image_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=MEAN, std=STD),
+        ])
 
     def transform(self, images_data, annotations=None, annotations_human_labels=None, valid_images_data=None):
         if self.train_mode and annotations is not None:
@@ -146,9 +185,12 @@ class ImageDetectionLoader(BaseTransformer):
                                    annotations_human_labels=annotations_human_labels,
                                    target_encoder=self.target_encoder,
                                    train_mode=True,
+                                   short_dim=self.dataset_params.short_dim,
+                                   long_dim=self.dataset_params.long_dim,
                                    image_transform=self.image_transform)
+
             datagen = DataLoader(dataset, **loader_params,
-                                 sampler=RandomSubsetSampler(data_size=len(dataset),
+                                 sampler=RandomSubsetSampler(images_data=images_data,
                                                              sample_size=self.dataset_params.sample_size),
                                  collate_fn=dataset.collate_fn)
         else:
@@ -157,7 +199,10 @@ class ImageDetectionLoader(BaseTransformer):
                                    annotations_human_labels=annotations_human_labels,
                                    target_encoder=self.target_encoder,
                                    train_mode=False,
+                                   short_dim=self.dataset_params.short_dim,
+                                   long_dim=self.dataset_params.long_dim,
                                    image_transform=self.image_transform)
+
             if annotations is not None:
                 datagen = DataLoader(dataset, **loader_params, collate_fn=dataset.collate_fn)
             else:

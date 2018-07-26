@@ -40,8 +40,8 @@ SOLUTION_CONFIG = AttrDict({
 
     'label_encoder': {'colname': LABEL_COLUMN
                       },
-    'loader': {'dataset_params': {'h': params.image_h,
-                                  'w': params.image_w,
+    'loader': {'dataset_params': {'short_dim': params.short_dim,
+                                  'long_dim': params.long_dim,
                                   'pad_method': params.pad_method,
                                   'sample_size': params.training_sample_size,
                                   'data_encoder': {'aspect_ratios': ASPECT_RATIOS,
@@ -49,6 +49,7 @@ SOLUTION_CONFIG = AttrDict({
                                                    'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS)}
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
+                                              'shuffle': False,
                                               'num_workers': params.num_workers,
                                               'pin_memory': params.pin_memory
                                               },
