@@ -43,7 +43,6 @@ SOLUTION_CONFIG = AttrDict({
     'loader': {'dataset_params': {'h': params.image_h,
                                   'w': params.image_w,
                                   'pad_method': params.pad_method,
-                                  'images_dir': None,
                                   'sample_size': params.training_sample_size,
                                   'data_encoder': {'aspect_ratios': ASPECT_RATIOS,
                                                    'scale_ratios': SCALE_RATIOS,

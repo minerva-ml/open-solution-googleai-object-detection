@@ -32,6 +32,7 @@ parameters:
   sample_submission: ''
   experiment_dir:  ''
   class_mappings_filepath: ''
+  metadata_filepath: ''
 
 # Execution
   clean_experiment_directory_before_training: 1

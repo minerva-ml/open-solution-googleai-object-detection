@@ -25,20 +25,19 @@ class RandomSubsetSampler(Sampler):
 
 
 class ImageDetectionDataset(Dataset):
-    def __init__(self, ids, annotations, annotations_human_labels, images_dir, target_encoder, train_mode,
+    def __init__(self, images_data, annotations, annotations_human_labels, target_encoder, train_mode,
                  image_transform=None):
         super().__init__()
-        self.ids = ids
+        self.images_data = images_data
         self.annotations = annotations
         self.annotations_human_labels = annotations_human_labels
-        self.images_dir = images_dir
         self.target_encoder = target_encoder
         self.train_mode = train_mode
 
         self.image_transform = image_transform
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.images_data)
 
     def __getitem__(self, index):
         Xi = self.load_from_disk(index)
@@ -53,8 +52,7 @@ class ImageDetectionDataset(Dataset):
             return Xi
 
     def load_from_disk(self, index):
-        imgId = self.ids[index]
-        img_path = os.path.join(self.images_dir, imgId + '.jpg')
+        img_path = self.images_data.iloc[index]['image_path']
         return self.load_image(img_path)
 
     def load_image(self, img_filepath, grayscale=False):
@@ -66,7 +64,7 @@ class ImageDetectionDataset(Dataset):
         return image
 
     def load_target(self, index, img_shape):
-        imgId = self.ids[index]
+        imgId = self.images_data.iloc[index]['ImageID']
         boxes_rows = self.annotations[self.annotations['ImageID'] == imgId]
         return self.get_boxes_and_labels(boxes_rows, img_shape)
 
@@ -125,15 +123,15 @@ class ImageDetectionLoader(BaseTransformer):
                                                    transforms.Normalize(mean=MEAN, std=STD),
                                                    ])
 
-    def transform(self, ids, annotations=None, annotations_human_labels=None, valid_ids=None):
+    def transform(self, images_data, annotations=None, annotations_human_labels=None, valid_images_data=None):
         if self.train_mode and annotations is not None:
-            flow, steps = self.get_datagen(ids, annotations, annotations_human_labels, True,
+            flow, steps = self.get_datagen(images_data, annotations, annotations_human_labels, True,
                                            self.loader_params.training)
         else:
-            flow, steps = self.get_datagen(ids, None, None, False, self.loader_params.inference)
+            flow, steps = self.get_datagen(images_data, None, None, False, self.loader_params.inference)
 
-        if valid_ids is not None:
-            valid_flow, valid_steps = self.get_datagen(valid_ids, annotations, annotations_human_labels, False,
+        if valid_images_data is not None:
+            valid_flow, valid_steps = self.get_datagen(valid_images_data, annotations, annotations_human_labels, False,
                                                        self.loader_params.training)
         else:
             valid_flow = None
@@ -141,12 +139,11 @@ class ImageDetectionLoader(BaseTransformer):
         return {'datagen': (flow, steps),
                 'validation_datagen': (valid_flow, valid_steps)}
 
-    def get_datagen(self, ids, annotations, annotations_human_labels, train_mode, loader_params):
+    def get_datagen(self, images_data, annotations, annotations_human_labels, train_mode, loader_params):
         if train_mode:
-            dataset = self.dataset(ids,
+            dataset = self.dataset(images_data,
                                    annotations=annotations,
                                    annotations_human_labels=annotations_human_labels,
-                                   images_dir=self.dataset_params.images_dir,
                                    target_encoder=self.target_encoder,
                                    train_mode=True,
                                    image_transform=self.image_transform)
@@ -155,10 +152,9 @@ class ImageDetectionLoader(BaseTransformer):
                                                              sample_size=self.dataset_params.sample_size),
                                  collate_fn=dataset.collate_fn)
         else:
-            dataset = self.dataset(ids,
+            dataset = self.dataset(images_data,
                                    annotations=annotations,
                                    annotations_human_labels=annotations_human_labels,
-                                   images_dir=self.dataset_params.images_dir,
                                    target_encoder=self.target_encoder,
                                    train_mode=False,
                                    image_transform=self.image_transform)

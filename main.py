@@ -10,6 +10,11 @@ def main():
 
 
 @main.command()
+def prepare_metadata():
+    pipeline_manager.prepare_metadata()
+
+
+@main.command()
 @click.option('-p', '--pipeline_name', help='pipeline to be trained', required=True)
 @click.option('-d', '--dev_mode', help='if true only a small sample of data will be used', is_flag=True, required=False)
 def train(pipeline_name, dev_mode):

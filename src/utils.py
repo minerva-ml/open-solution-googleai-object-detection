@@ -7,7 +7,7 @@ import pathlib
 import random
 import subprocess
 import sys
-from collections import Iterable
+from collections import Iterable, defaultdict
 from itertools import chain
 from itertools import cycle
 
@@ -203,6 +203,14 @@ def generate_list_chunks(meta, chunk_size):
     chunk_nr = int(math.ceil(n_rows / chunk_size))
     for i in tqdm(range(chunk_nr)):
         meta_chunk = meta[i * chunk_size:(i + 1) * chunk_size]
+        yield meta_chunk
+
+
+def generate_data_frame_chunks(meta, chunk_size):
+    n_rows = meta.shape[0]
+    chunk_nr = int(math.ceil(n_rows / chunk_size))
+    for i in tqdm(range(chunk_nr)):
+        meta_chunk = meta.iloc[i * chunk_size:(i + 1) * chunk_size]
         yield meta_chunk
 
 
@@ -502,3 +510,40 @@ def visualize_bboxes(image, detections_df, threshold=0.1, return_format='PIL'):
 
     else:
         return detection_figure
+
+
+def get_image_aspect_ratio(image_path):
+    im = Image.open(image_path)
+    h, w = im.size
+    return h/w
+
+
+def generate_metadata(train_image_ids=None, train_image_dir=None,
+                      valid_image_ids=None, valid_image_dir=None,
+                      test_image_ids=None, test_image_dir=None):
+
+    def _generate_metadata(imageIds, image_dir, is_train, is_valid, is_test):
+
+        df_dict = defaultdict(lambda: [])
+        for imgId in imageIds:
+            df_dict['ImageID'].append(imgId)
+            image_path = os.path.join(image_dir, imgId + '.jpg')
+            df_dict['image_path'].append(image_path)
+            df_dict['aspect_ratio'].append(get_image_aspect_ratio(image_path))
+            df_dict['is_train'] = is_train
+            df_dict['is_valid'] = is_valid
+            df_dict['is_test'] = is_test
+
+        return pd.DataFrame.from_dict(df_dict)
+
+    columns = ['ImageID', 'image_path', 'aspect_ratio', 'is_train', 'is_valid', 'is_test']
+    metadata = pd.DataFrame(columns=columns)
+
+    if train_image_ids is not None:
+        metadata = pd.concat([metadata, _generate_metadata(train_image_ids, train_image_dir, 1, 0, 0)])
+    if valid_image_ids is not None:
+        metadata = pd.concat([metadata, _generate_metadata(valid_image_ids, valid_image_dir, 0, 1, 0)])
+    if test_image_ids is not None:
+        metadata = pd.concat([metadata, _generate_metadata(test_image_ids, test_image_dir, 0, 0, 1)])
+
+    return metadata.sort_values('aspect_ratio').reset_index(drop=True)
