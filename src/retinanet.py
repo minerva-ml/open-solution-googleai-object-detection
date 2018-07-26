@@ -359,10 +359,12 @@ class DataEncoder(BaseDataHandler):
 
 
 class DataDecoder(BaseDataHandler, BaseTransformer):
-    def __init__(self, input_size, num_threads, **kwargs):
+    def __init__(self, input_size, num_threads, cls_thrs, nms_thrs, **kwargs):
         super().__init__(**kwargs)
         self.input_size = input_size
         self.num_threads = num_threads
+        self.cls_thrs = cls_thrs
+        self.nms_thrs = nms_thrs
 
     def transform(self, box_predictions, class_predictions):
         with mp.pool.ThreadPool(self.num_threads) as executor:
@@ -382,8 +384,6 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
           boxes: (tensor) decode box locations, sized [#obj,4].
           labels: (tensor) class labels for each box, sized [#obj,].
         """
-        CLS_THRESH = 0.2
-        NMS_THRESH = 0.5
 
         input_size = torch.Tensor([input_size, input_size]) if isinstance(input_size, int) \
             else torch.Tensor(input_size)
@@ -398,11 +398,11 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
 
         score, labels = cls_preds.sigmoid().max(1)  # [#anchors,]
         labels += 1
-        ids = score > CLS_THRESH
+        ids = score > self.cls_thrs
         ids = ids.nonzero().squeeze()  # [#obj,]
         if len(ids) == 0:
             return torch.Tensor([]), torch.Tensor([]), torch.Tensor([])
-        keep = box_nms(boxes[ids], score[ids], threshold=NMS_THRESH)
+        keep = box_nms(boxes[ids], score[ids], threshold=self.nms_thrs)
         return boxes[ids][keep], labels[ids][keep], score[ids][keep]
 
 

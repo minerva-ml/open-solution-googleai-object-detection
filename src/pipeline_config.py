@@ -14,7 +14,7 @@ SEED = 1234
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
-DESIRED_CLASS_SUBSET = []
+DESIRED_CLASS_SUBSET = parameter_eval(params.desired_class_subset)
 N_SUB_CLASSES = len(DESIRED_CLASS_SUBSET)
 
 ASPECT_RATIOS = parameter_eval(params.aspect_ratios)
@@ -117,7 +117,9 @@ SOLUTION_CONFIG = AttrDict({
             'num_threads': params.num_threads,
             'aspect_ratios': ASPECT_RATIOS,
             'scale_ratios': SCALE_RATIOS,
-            'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS)
+            'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS),
+            'cls_thrs': params.classification_threshold,
+            'nms_thrs': params.nms_threshold
         },
         'prediction_formatter': {
             'image_size': (params.image_h, params.image_w)

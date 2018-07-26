@@ -42,39 +42,7 @@ def train(pipeline_name, dev_mode):
     if bool(PARAMS.clean_experiment_directory_before_training) and os.path.isdir(PARAMS.experiment_dir):
         shutil.rmtree(PARAMS.experiment_dir)
 
-    annotations = pd.read_csv(PARAMS.annotations_filepath)
-    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
-    valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
-
-    if DESIRED_CLASS_SUBSET:
-        LOGGER.info("Training on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
-        annotations = reduce_number_of_classes(annotations,
-                                               DESIRED_CLASS_SUBSET,
-                                               PARAMS.class_mappings_filepath)
-
-        annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
-                                                            DESIRED_CLASS_SUBSET,
-                                                            PARAMS.class_mappings_filepath)
-
-        img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
-        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)].reset_index(
-            drop=True)
-
-    if PARAMS.default_valid_ids:
-        if valid_ids_data.shape[0] < PARAMS.validation_sample_size:
-            LOGGER.warning("Validation sample-size is smaller then desired validation safmple size ... clipping")
-            PARAMS.validation_sample_size = np.clip(PARAMS.validation_sample_size,
-                                                    a_max=valid_ids_data.shape[0], a_min=0)
-
-        valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
-        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
-        train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
-    else:
-        raise NotImplementedError
-
-    if dev_mode:
-        train_img_ids = train_img_ids[:100]
-        valid_img_ids = valid_img_ids[:20]
+    annotations, annotations_human_labels, train_img_ids, valid_img_ids = _get_input_data(dev_mode)
 
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
@@ -96,27 +64,7 @@ def train(pipeline_name, dev_mode):
 def evaluate(pipeline_name, dev_mode, chunk_size):
     LOGGER.info('evaluating')
 
-    annotations = pd.read_csv(PARAMS.annotations_filepath)
-    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
-
-    if DESIRED_CLASS_SUBSET:
-        LOGGER.info("Evaluating on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
-        annotations = reduce_number_of_classes(annotations,
-                                               DESIRED_CLASS_SUBSET,
-                                               PARAMS.class_mappings_filepath)
-
-        annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
-                                                            DESIRED_CLASS_SUBSET,
-                                                            PARAMS.class_mappings_filepath)
-
-    if PARAMS.default_valid_ids:
-        valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
-        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
-    else:
-        raise NotImplementedError
-
-    if dev_mode:
-        valid_img_ids = valid_img_ids[:96]
+    annotations, annotations_human_labels, _, valid_img_ids = _get_input_data(dev_mode)
 
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
@@ -185,16 +133,18 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
 def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show_popups=False):
     if image_dir:
         SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = image_dir
+        img_ids = get_img_ids_from_folder(SOLUTION_CONFIG['loader']['dataset_params']['images_dir'], n_ids=n_files)
     else:
-        SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.test_imgs_dir
+        SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
+        _, _, _, img_ids = _get_input_data()
+        img_ids = img_ids[:n_files]
 
     if single_image:
         raise NotImplemented
 
-    test_img_ids = get_img_ids_from_folder(SOLUTION_CONFIG['loader']['dataset_params']['images_dir'], n_ids=n_files)
     pipeline = PIPELINES[pipeline_name]['visualize'](SOLUTION_CONFIG)
 
-    data = {'input': {'img_ids': test_img_ids
+    data = {'input': {'img_ids': img_ids
                       },
             'metadata': {'annotations': None,
                          'annotations_human_labels': None
@@ -262,3 +212,42 @@ def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
 
     predictions = pd.concat(predictions)
     return predictions
+
+
+def _get_input_data(dev_mode=False):
+    annotations = pd.read_csv(PARAMS.annotations_filepath)
+    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
+    valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
+
+    if DESIRED_CLASS_SUBSET:
+        LOGGER.info("Training on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
+        annotations = reduce_number_of_classes(annotations,
+                                               DESIRED_CLASS_SUBSET,
+                                               PARAMS.class_mappings_filepath)
+
+        annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
+                                                            DESIRED_CLASS_SUBSET,
+                                                            PARAMS.class_mappings_filepath)
+
+        img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
+        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)].reset_index(
+            drop=True)
+
+    if PARAMS.default_valid_ids:
+        validation_sample_size = PARAMS.validation_sample_size
+        if valid_ids_data.shape[0] < validation_sample_size:
+            LOGGER.warning("Validation sample-size is smaller then desired validation safmple size ... clipping")
+            validation_sample_size = np.clip(validation_sample_size,
+                                             a_max=valid_ids_data.shape[0], a_min=0)
+
+        valid_ids_data = valid_ids_data.sample(validation_sample_size, random_state=SEED)
+        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
+        train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
+    else:
+        raise NotImplementedError
+
+    if dev_mode:
+        train_img_ids = train_img_ids[:100]
+        valid_img_ids = valid_img_ids[:20]
+
+    return annotations, annotations_human_labels, train_img_ids, valid_img_ids

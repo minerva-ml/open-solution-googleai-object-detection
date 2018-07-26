@@ -51,6 +51,7 @@ parameters:
   image_w: 512
   image_channels: 3
   pad_method: 'resize'
+  desired_class_subset: '[]'
 
 # Retina parameters (multi-output)
   encoder_depth: 50
@@ -79,3 +80,7 @@ parameters:
   l2_reg_dense: 0.0
   dropout_conv: 0.1
   dropout_dense: 0.0
+
+# Postprocessing
+  classification_threshold: 0.05
+  nms_threshold: 0.5
