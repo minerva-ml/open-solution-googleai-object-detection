@@ -51,6 +51,7 @@ parameters:
   image_w: 512
   image_channels: 3
   pad_method: 'resize'
+  desired_class_subset: '[]'
 
 # Retina parameters (multi-output)
   encoder_depth: 50

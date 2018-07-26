@@ -14,7 +14,7 @@ SEED = 1234
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
 
-DESIRED_CLASS_SUBSET = []
+DESIRED_CLASS_SUBSET = parameter_eval(params.desired_class_subset)
 N_SUB_CLASSES = len(DESIRED_CLASS_SUBSET)
 
 ASPECT_RATIOS = parameter_eval(params.aspect_ratios)
