@@ -42,7 +42,7 @@ def train(pipeline_name, dev_mode):
     if bool(PARAMS.clean_experiment_directory_before_training) and os.path.isdir(PARAMS.experiment_dir):
         shutil.rmtree(PARAMS.experiment_dir)
 
-    annotations, annotations_human_labels, train_img_ids, valid_img_ids = get_input_data(dev_mode)
+    annotations, annotations_human_labels, train_img_ids, valid_img_ids = _get_input_data(dev_mode)
 
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
@@ -64,7 +64,7 @@ def train(pipeline_name, dev_mode):
 def evaluate(pipeline_name, dev_mode, chunk_size):
     LOGGER.info('evaluating')
 
-    annotations, annotations_human_labels, _, valid_img_ids = get_input_data(dev_mode)
+    annotations, annotations_human_labels, _, valid_img_ids = _get_input_data(dev_mode)
 
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
@@ -136,7 +136,7 @@ def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show
         img_ids = get_img_ids_from_folder(SOLUTION_CONFIG['loader']['dataset_params']['images_dir'], n_ids=n_files)
     else:
         SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
-        _, _, _, img_ids = get_input_data()
+        _, _, _, img_ids = _get_input_data()
         img_ids = img_ids[:n_files]
 
     if single_image:
@@ -214,7 +214,7 @@ def _generate_prediction_in_chunks(img_ids, pipeline, chunk_size):
     return predictions
 
 
-def get_input_data(dev_mode=False):
+def _get_input_data(dev_mode=False):
     annotations = pd.read_csv(PARAMS.annotations_filepath)
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
     valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
