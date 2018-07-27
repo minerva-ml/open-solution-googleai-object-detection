@@ -359,20 +359,21 @@ class DataEncoder(BaseDataHandler):
 
 
 class DataDecoder(BaseDataHandler, BaseTransformer):
-    def __init__(self, input_size, num_threads, cls_thrs, nms_thrs, **kwargs):
+    def __init__(self, short_dim, long_dim, num_threads, cls_thrs, nms_thrs, **kwargs):
         super().__init__(**kwargs)
-        self.input_size = input_size
+        self.short_dim = short_dim
+        self.long_dim = long_dim
         self.num_threads = num_threads
         self.cls_thrs = cls_thrs
         self.nms_thrs = nms_thrs
 
-    def transform(self, box_predictions, class_predictions):
+    def transform(self, images_data, box_predictions, class_predictions):
         with mp.pool.ThreadPool(self.num_threads) as executor:
-            results = executor.map(lambda input_: self.decode(*input_, input_size=self.input_size),
-                                   zip(box_predictions, class_predictions))
+            results = executor.map(lambda input_: self.decode(*input_),
+                                   zip(box_predictions, class_predictions, images_data['aspect_ratio'].values))
         return {'results': results}
 
-    def decode(self, loc_preds, cls_preds, input_size):
+    def decode(self, loc_preds, cls_preds, aspect_ratio):
         """Decode outputs back to bouding box locations and class labels.
 
         Args:
@@ -384,6 +385,8 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
           boxes: (tensor) decode box locations, sized [#obj,4].
           labels: (tensor) class labels for each box, sized [#obj,].
         """
+
+        input_size = self._get_input_size(aspect_ratio)
 
         input_size = torch.Tensor([input_size, input_size]) if isinstance(input_size, int) \
             else torch.Tensor(input_size)
@@ -404,6 +407,23 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
             return torch.Tensor([]), torch.Tensor([]), torch.Tensor([])
         keep = box_nms(boxes[ids], score[ids], threshold=self.nms_thrs)
         return boxes[ids][keep], labels[ids][keep], score[ids][keep]
+
+    def _get_input_size(self, aspect_ratio):
+        h, w = aspect_ratio, 1
+        x, y = min(h, w), max(h, w)     # x < y
+        if y*self.short_dim > x*self.long_dim:
+            target_x = x * self.long_dim // y
+            target_y = self.long_dim
+        else:
+            target_x = self.short_dim
+            target_y = y * self.short_dim // x
+
+        if h > w:
+            target_x, target_y = target_y, target_x
+
+        target_x, target_y = target_x // 4 * 4, target_y // 4 * 4
+
+        return target_x, target_y
 
 
 def one_hot_embedding(labels, num_classes):

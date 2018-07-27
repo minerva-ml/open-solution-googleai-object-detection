@@ -113,7 +113,8 @@ SOLUTION_CONFIG = AttrDict({
     },
     'postprocessing': {
         'data_decoder': {
-            'input_size': (params.image_h, params.image_w),
+            'short_dim': params.short_dim,
+            'long_dim': params.long_dim,
             'num_threads': params.num_threads,
             'aspect_ratios': ASPECT_RATIOS,
             'scale_ratios': SCALE_RATIOS,

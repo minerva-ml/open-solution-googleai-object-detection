@@ -267,6 +267,6 @@ def _get_input_data(dev_mode=False, metadata=None):
 
     if dev_mode:
         meta_train = meta_train.sample(100, random_state=SEED)
-        meta_valid = meta_valid.sample(20, random_state=SEED)
+        meta_valid = meta_valid.sample(960, random_state=SEED)
 
     return annotations, annotations_human_labels, meta_train, meta_valid

@@ -15,8 +15,9 @@ class PredictionFormatter(BaseTransformer):
         super().__init__()
         self.image_size = image_size
 
-    def transform(self, image_ids, results, decoder_dict):
+    def transform(self, images_data, results, decoder_dict):
         self.decoder_dict = decoder_dict
+        image_ids = images_data['ImageID'].values.tolist()
         prediction_strings = []
         for bboxes, labels, scores in results:
             prediction_strings.append(self._get_prediction_string(bboxes, labels, scores))
@@ -51,7 +52,8 @@ class Visualizer(BaseTransformer):
         super().__init__()
         self.image_size = image_size
 
-    def transform(self, image_ids, results, decoder_dict):
+    def transform(self, images_data, results, decoder_dict):
+        image_ids = images_data['ImageID'].values.tolist()
         decoder_dict = decoder_dict
         all_detections, all_boxes = [], []
         for i, (image_id, detections) in enumerate(zip(image_ids, results)):

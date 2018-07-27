@@ -85,6 +85,7 @@ def visualizer(model, label_encoder, config):
 
     decoder = Step(name='decoder',
                    transformer=DataDecoder(**config.postprocessing.data_decoder),
+                   input_data=['input'],
                    input_steps=[model, ],
                    experiment_directory=config.env.cache_dirpath)
 
@@ -92,7 +93,7 @@ def visualizer(model, label_encoder, config):
                      transformer=Visualizer(**config.postprocessing.prediction_formatter),
                      input_steps=[label_decoder, decoder],
                      input_data=['input'],
-                     adapter=Adapter({'image_ids': E('input', 'img_ids'),
+                     adapter=Adapter({'images_data': E('input', 'images_data'),
                                       'results': E(decoder.name, 'results'),
                                       'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
                      experiment_directory=config.env.cache_dirpath)
@@ -108,6 +109,7 @@ def postprocessing(model, label_encoder, config):
 
     decoder = Step(name='decoder',
                    transformer=DataDecoder(**config.postprocessing.data_decoder),
+                   input_data=['input'],
                    input_steps=[model, ],
                    experiment_directory=config.env.cache_dirpath)
 
@@ -115,7 +117,7 @@ def postprocessing(model, label_encoder, config):
                                transformer=PredictionFormatter(**config.postprocessing.prediction_formatter),
                                input_steps=[label_decoder, decoder],
                                input_data=['input'],
-                               adapter=Adapter({'image_ids': E('input', 'img_ids'),
+                               adapter=Adapter({'images_data': E('input', 'images_data'),
                                                 'results': E(decoder.name, 'results'),
                                                 'decoder_dict': E(label_decoder.name, 'inverse_mapping')}),
                                experiment_directory=config.env.cache_dirpath)

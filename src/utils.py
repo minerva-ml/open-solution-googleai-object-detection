@@ -524,20 +524,6 @@ def _get_image_aspect_ratio(image_path):
     return h/w
 
 
-def _get_image_metadata(imgId, image_dir, is_train, is_valid, is_test):
-    print(imgId)
-    data = {}
-    data['ImageID'].append(imgId)
-    image_path = os.path.join(image_dir, imgId + '.jpg')
-    data['image_path'].append(image_path)
-    data['aspect_ratio'].append(_get_image_aspect_ratio(image_path))
-    data['is_train'] = is_train
-    data['is_valid'] = is_valid
-    data['is_test'] = is_test
-
-    return data
-
-
 def generate_metadata(num_threads=10,
                       train_image_ids=None, train_image_dir=None,
                       valid_image_ids=None, valid_image_dir=None,

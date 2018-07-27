@@ -1,6 +1,7 @@
 import os
 import random
 import torch
+import numpy as np
 from attrdict import AttrDict
 from sklearn.externals import joblib
 from torch.utils.data import Dataset, DataLoader
@@ -14,15 +15,22 @@ from .pipeline_config import MEAN, STD
 
 
 class RandomSubsetSampler(Sampler):
-    def __init__(self, images_data, sample_size):
+    def __init__(self, images_data, sample_size, batch_size):
         self.images_data = images_data
+        self.batch_size = batch_size
         self.sample_size = min(sample_size, len(self.images_data))
+        self.sample_size = self.sample_size // self.batch_size * self.batch_size
 
         self.indicies = self.images_data.sort_values('aspect_ratio').index.tolist()
 
     def __iter__(self):
         subset = sorted(random.sample(range(len(self.indicies)), self.sample_size))
-        return (self.indicies[i] for i in subset)
+        indicies = np.array([self.indicies[i] for i in subset])\
+            .reshape(self.sample_size // self.batch_size, self.batch_size)
+        np.random.shuffle(indicies)
+        indicies = indicies.flatten()
+
+        return iter(indicies)
 
     def __len__(self):
         return self.sample_size
@@ -49,6 +57,8 @@ class ImageDetectionDataset(Dataset):
 
         Xi = self.load_from_disk(index)
         Xi = self.resize_image(Xi)
+        if not self.train_mode:
+            Xi = self.image_transform(Xi)
 
         if self.annotations is not None:
             h, w = Xi.size
@@ -99,23 +109,30 @@ class ImageDetectionDataset(Dataset):
 
         if h > w:
             target_x, target_y = target_y, target_x
+        target_x, target_y = target_x // 4 * 4, target_y // 4 * 4
+
         resize = transforms.Resize((target_x, target_y))
 
         return resize(image)
 
     def alling_images(self, images):
         max_h, max_w = 0, 0
+        min_h, min_w = 1000, 1000
         for image in images:
             h, w = image.size
             max_h, max_w = max(h, max_h), max(w, max_w)
+            min_h, min_w = min(h, min_h), min(w, min_w)
 
-        padded_images = []
+        print('h: [{}, {}], w: [{}, {}]'.format(min_h, max_h, min_w, max_w))
+
+        resize = transforms.Resize((max_h, max_w))
+        allinged_images = []
         for image in images:
-            h, w = image.size
-            pad = transforms.Pad((0, 0, max_h - h, max_w - w), fill=255, padding_mode='constant')
-            padded_images.append(pad(image))
+            # h, w = image.size
+            # pad = transforms.Pad((0, 0, max_h - h, max_w - w), fill=255, padding_mode='constant')
+            allinged_images.append(resize(image))
 
-        return padded_images
+        return allinged_images
 
     def collate_fn(self, batch):
         """Encode targets.
@@ -144,6 +161,8 @@ class ImageDetectionDataset(Dataset):
         bbox_targets, clf_targets = torch.stack(bbox_targets), torch.stack(clf_targets)
         clf_targets = clf_targets.unsqueeze(-1)
         targets = torch.cat((bbox_targets, clf_targets), 2)
+
+        # print("inputs: {}, targets: {}".format(inputs.size(), targets.size()))
         return inputs, targets
 
 
@@ -191,7 +210,8 @@ class ImageDetectionLoader(BaseTransformer):
 
             datagen = DataLoader(dataset, **loader_params,
                                  sampler=RandomSubsetSampler(images_data=images_data,
-                                                             sample_size=self.dataset_params.sample_size),
+                                                             sample_size=self.dataset_params.sample_size,
+                                                             batch_size=self.loader_params.training.batch_size),
                                  collate_fn=dataset.collate_fn)
         else:
             dataset = self.dataset(images_data,
