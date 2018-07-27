@@ -161,6 +161,7 @@ def main(parsed_args):
             for line in source:
                 if not header:
                     target.writelines(line)
+                    header = line
                     continue
                 if labels_file:
                     expanded_lines = expansion_generator.expand_labels_from_csv(line)
