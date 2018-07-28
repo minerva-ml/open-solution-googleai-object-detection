@@ -61,6 +61,8 @@ class Visualizer(BaseTransformer):
         image_ids = images_data['ImageID'].values.tolist()
         decoder_dict = decoder_dict
         all_detections, all_boxes = [], []
+        # import pdb
+        # pdb.set_trace()
         for i, (image_id, detections) in enumerate(zip(image_ids, results)):
             if not bool(detections[0].size()):
                 continue

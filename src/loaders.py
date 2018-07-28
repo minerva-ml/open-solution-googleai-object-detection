@@ -89,17 +89,17 @@ class ImageDetectionDataset(Dataset):
         boxes, labels = [], []
         h, w = img_shape
         for _, box_row in boxes_rows.iterrows():
-            x_min = box_row['XMin'] * h
-            x_max = box_row['XMax'] * h
-            y_min = box_row['YMin'] * w
-            y_max = box_row['YMax'] * w
+            x_min = box_row['XMin'] * w
+            x_max = box_row['XMax'] * w
+            y_min = box_row['YMin'] * h
+            y_max = box_row['YMax'] * h
             label = box_row['LabelName']
             boxes.append([x_min, y_min, x_max, y_max])
             labels.append(label)
         return torch.FloatTensor(boxes), torch.FloatTensor(labels)
 
     def resize_image(self, image):
-        h, w = image.size
+        w, h = image.size
         x, y = min(h, w), max(h, w)     # x < y
         if y*self.short_dim > x*self.long_dim:
             target_x = x * self.long_dim // y
@@ -109,26 +109,29 @@ class ImageDetectionDataset(Dataset):
             target_y = y * self.short_dim // x
 
         if h > w:
-            target_x, target_y = target_y, target_x
-        target_x, target_y = target_x // 4 * 4, target_y // 4 * 4
+            target_h, target_w = target_y, target_x
+        else:
+            target_h, target_w = target_x, target_y
+
+        target_h, target_w = target_h // 4 * 4, target_w // 4 * 4
 
         # print("<<<<<<<<< old: {}, new: {}".format((h,w), (target_x,target_y)))
 
-        resize = transforms.Resize((target_y, target_x))
+        resize = transforms.Resize((target_h, target_w))
 
         return resize(image)
 
     def alling_images(self, images):
         max_h, max_w = 0, 0
-        min_h, min_w = 1000, 1000
+        min_h, min_w = 1e10, 1e10
         for image in images:
-            h, w = image.size
+            w, h = image.size
             max_h, max_w = max(h, max_h), max(w, max_w)
             min_h, min_w = min(h, min_h), min(w, min_w)
 
         # print('h: [{}, {}], w: [{}, {}]'.format(min_h, max_h, min_w, max_w))
 
-        resize = transforms.Resize((max_w, max_h))
+        resize = transforms.Resize((max_h, max_w))
         allinged_images = []
         for image in images:
             # h, w = image.size
@@ -155,11 +158,21 @@ class ImageDetectionDataset(Dataset):
         # print("============ old: {}, new: {}".format(old, new))
         imgs = [self.image_transform(img) for img in imgs]
 
+
+        # from imageio import imwrite
+        # imwrite('im.jpg', imgs[0].numpy().transpose(1,2,0))
+        # print("<<<<<<<<<<<<<<<<")
+        # print(imgs[0].size())
+        # print(boxes[0])
+        # print(">>>>>>>>>>>>>")
+        # import pdb
+        # pdb.set_trace()
+
         inputs = torch.stack(imgs)
-        input_size = torch.Tensor(list(inputs.size()[-2:]))
+        _, _, h, w = inputs.size()
         bbox_targets, clf_targets = [], []
         for box, label in zip(boxes, labels):
-            bbox_target, clf_target = self.target_encoder.encode(box, label, input_size=input_size)
+            bbox_target, clf_target = self.target_encoder.encode(box, label, input_size=(w,h))
             bbox_targets.append(bbox_target)
             clf_targets.append(clf_target)
 

@@ -520,8 +520,8 @@ def visualize_bboxes(image, detections_df, threshold=0.1, return_format='PIL'):
 
 def _get_image_aspect_ratio(image_path):
     im = Image.open(image_path)
-    h, w = im.size
-    return h/w
+    w, h = im.size
+    return w/h
 
 
 def generate_metadata(num_threads=10,
