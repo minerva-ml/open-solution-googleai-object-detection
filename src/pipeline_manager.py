@@ -182,7 +182,7 @@ def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show
 
     images_with_drawn_boxes = pipeline.fit_transform(data)
     for img in images_with_drawn_boxes:
-        basewidth = 600
+        basewidth = 500
         wpercent = (basewidth / float(img.size[0]))
         hsize = int((float(img.size[1]) * float(wpercent)))
         img = img.resize((basewidth, hsize), Image.ANTIALIAS)  # we have to make them smaller bc of neptune limitations
@@ -262,11 +262,11 @@ def _get_input_data(dev_mode=False, metadata=None):
         img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
         metadata = metadata[metadata['ImageID'].isin(img_ids_in_reduced_annotations)]
 
-    meta_train = metadata[metadata['is_train'] == 1].reset_index(drop=True)
-    meta_valid = metadata[metadata['is_valid'] == 1].reset_index(drop=True)
+    meta_train = metadata[metadata['is_train'] == 1]
+    meta_valid = metadata[metadata['is_valid'] == 1]
 
     if dev_mode:
         meta_train = meta_train.sample(100, random_state=SEED)
         meta_valid = meta_valid.sample(960, random_state=SEED)
 
-    return annotations, annotations_human_labels, meta_train, meta_valid
+    return annotations, annotations_human_labels, meta_train.reset_index(drop=True), meta_valid.reset_index(drop=True)

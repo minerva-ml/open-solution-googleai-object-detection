@@ -56,16 +56,17 @@ class ImageDetectionDataset(Dataset):
     def __getitem__(self, index):
 
         Xi = self.load_from_disk(index)
+        old_size = Xi.size
         Xi = self.resize_image(Xi)
-        if not self.train_mode:
-            Xi = self.image_transform(Xi)
+        new_size = Xi.size
+        # print(">>>>>>>> old size: {}, new size: {}".format(old_size, new_size))
 
         if self.annotations is not None:
-            h, w = Xi.size
+            w, h = Xi.size
             yi = self.load_target(index, (h, w))
             return Xi, yi
         else:
-            return Xi
+            return self.image_transform(Xi)
 
     def load_from_disk(self, index):
         img_path = self.images_data.iloc[index]['image_path']
@@ -111,7 +112,9 @@ class ImageDetectionDataset(Dataset):
             target_x, target_y = target_y, target_x
         target_x, target_y = target_x // 4 * 4, target_y // 4 * 4
 
-        resize = transforms.Resize((target_x, target_y))
+        # print("<<<<<<<<< old: {}, new: {}".format((h,w), (target_x,target_y)))
+
+        resize = transforms.Resize((target_y, target_x))
 
         return resize(image)
 
@@ -123,9 +126,9 @@ class ImageDetectionDataset(Dataset):
             max_h, max_w = max(h, max_h), max(w, max_w)
             min_h, min_w = min(h, min_h), min(w, min_w)
 
-        print('h: [{}, {}], w: [{}, {}]'.format(min_h, max_h, min_w, max_w))
+        # print('h: [{}, {}], w: [{}, {}]'.format(min_h, max_h, min_w, max_w))
 
-        resize = transforms.Resize((max_h, max_w))
+        resize = transforms.Resize((max_w, max_h))
         allinged_images = []
         for image in images:
             # h, w = image.size
@@ -146,8 +149,10 @@ class ImageDetectionDataset(Dataset):
         imgs = [x[0] for x in batch]
         boxes = [x[1][0] for x in batch]
         labels = [x[1][1] for x in batch]
-
+        old = imgs[0].size
         imgs = self.alling_images(imgs)
+        new = imgs[0].size
+        # print("============ old: {}, new: {}".format(old, new))
         imgs = [self.image_transform(img) for img in imgs]
 
         inputs = torch.stack(imgs)
@@ -190,7 +195,7 @@ class ImageDetectionLoader(BaseTransformer):
 
         if valid_images_data is not None:
             valid_flow, valid_steps = self.get_datagen(valid_images_data, annotations, annotations_human_labels, False,
-                                                       self.loader_params.training)
+                                                       self.loader_params.inference)
         else:
             valid_flow = None
             valid_steps = None
@@ -211,7 +216,7 @@ class ImageDetectionLoader(BaseTransformer):
             datagen = DataLoader(dataset, **loader_params,
                                  sampler=RandomSubsetSampler(images_data=images_data,
                                                              sample_size=self.dataset_params.sample_size,
-                                                             batch_size=self.loader_params.training.batch_size),
+                                                             batch_size=loader_params.batch_size),
                                  collate_fn=dataset.collate_fn)
         else:
             dataset = self.dataset(images_data,
@@ -224,7 +229,11 @@ class ImageDetectionLoader(BaseTransformer):
                                    image_transform=self.image_transform)
 
             if annotations is not None:
-                datagen = DataLoader(dataset, **loader_params, collate_fn=dataset.collate_fn)
+                datagen = DataLoader(dataset, **loader_params,
+                                     sampler=RandomSubsetSampler(images_data=images_data,
+                                                                 sample_size=self.dataset_params.sample_size,
+                                                                 batch_size=loader_params.batch_size),
+                                     collate_fn=dataset.collate_fn)
             else:
                 datagen = DataLoader(dataset, **loader_params)
 

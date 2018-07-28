@@ -399,6 +399,12 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
         wh = loc_hw.exp() * anchor_boxes[:, 2:]
         boxes = torch.cat([xy - wh / 2, xy + wh / 2], 1)  # [#anchors,4]
 
+        h, w = input_size
+        boxes[:, [0, 2]] /= h
+        boxes[:, [1, 3]] /= w
+
+        boxes = torch.clamp(boxes, min=0.0, max=1.0)
+
         score, labels = cls_preds.sigmoid().max(1)  # [#anchors,]
         labels += 1
         ids = score > self.cls_thrs

@@ -39,10 +39,15 @@ class PredictionFormatter(BaseTransformer):
     def _get_bbox_relative(self, bbox):
         h = self.image_size[0]
         w = self.image_size[1]
-        x_min = np.clip(bbox[0] / h, 0.0, 1.0)
-        y_min = np.clip(bbox[1] / w, 0.0, 1.0)
-        x_max = np.clip(bbox[2] / h, 0.0, 1.0)
-        y_max = np.clip(bbox[3] / w, 0.0, 1.0)
+        # x_min = np.clip(bbox[0] / h, 0.0, 1.0)
+        # y_min = np.clip(bbox[1] / w, 0.0, 1.0)
+        # x_max = np.clip(bbox[2] / h, 0.0, 1.0)
+        # y_max = np.clip(bbox[3] / w, 0.0, 1.0)
+
+        x_min = np.clip(bbox[0], 0.0, 1.0)
+        y_min = np.clip(bbox[1], 0.0, 1.0)
+        x_max = np.clip(bbox[2], 0.0, 1.0)
+        y_max = np.clip(bbox[3], 0.0, 1.0)
         result = [x_min, y_min, x_max, y_max]
         return [str(r) for r in result]
 
@@ -74,10 +79,10 @@ class Visualizer(BaseTransformer):
             df.class_name = df.class_name.map(CODES2NAMES)
 
             # revert resize
-            df.x1 = df.x1 / h
-            df.y1 = df.y1 / w
-            df.x2 = df.x2 / h
-            df.y2 = df.y2 / w
+            # df.x1 = df.x1 / h
+            # df.y1 = df.y1 / w
+            # df.x2 = df.x2 / h
+            # df.y2 = df.y2 / w
 
             # to absolute
             df['x1'] = df['x1'] * width
