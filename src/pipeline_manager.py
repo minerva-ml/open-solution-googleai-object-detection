@@ -11,7 +11,7 @@ from PIL import Image
 from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, LABEL_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
 from .utils import NeptuneContext, competition_metric_evaluation, generate_list_chunks, get_img_ids_from_folder, \
-    init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids
+    init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids, map_per_class
 
 LOGGER = init_logger()
 CTX = NeptuneContext()
@@ -104,7 +104,10 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
                                                                list_of_desired_classes=class_subset,
                                                                mappings_filepath=PARAMS.class_mappings_filepath
                                                                )
-        LOGGER.info('MAP on validation is {}'.format(mean_average_precision))
+
+        for class_name, map_score in map_per_class(metrics_filepath, class_subset, PARAMS.class_mappings_filepath):
+            LOGGER.info('MAP on validation {} is {}'.format(class_name, map_score))
+        LOGGER.info('MAP on validation mean is {}'.format(mean_average_precision))
         CTX.channel_send('MAP', 0, mean_average_precision)
 
 
