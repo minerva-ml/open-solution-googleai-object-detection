@@ -363,18 +363,7 @@ def submission_formatting(submission):
 
 
 def calculate_map(metrics_filepath, list_of_desired_classes=None, mappings_file=None):
-    with open(metrics_filepath) as f:
-        metrics = f.read().splitlines()
-
-    if list_of_desired_classes:
-        codes2names, names2codes = get_class_mappings(mappings_file)
-        if not all([cls.startswith('/') for cls in list_of_desired_classes]):
-            list_of_desired_classes = [names2codes.get(cls_name, 'notfound')
-                                       for cls_name in list_of_desired_classes]
-
-        assert all(
-            [cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are " \
-                                                                                "invalid "
+    metrics, codes2names, names2codes = _load_dependecies(metrics_filepath, list_of_desired_classes, mappings_file)
 
     label_scores = []
     for label_score in metrics:
@@ -388,6 +377,38 @@ def calculate_map(metrics_filepath, list_of_desired_classes=None, mappings_file=
         else:
             label_scores.append(score)
     return np.mean(label_scores)
+
+
+def map_per_class(metrics_filepath, list_of_desired_classes=None, mappings_file=None):
+    metrics, codes2names, names2codes = _load_dependecies(metrics_filepath, list_of_desired_classes, mappings_file)
+
+    label_scores = []
+    for label_score in metrics:
+        score = float(label_score.split(',')[1])
+        score = 0.0 if np.isnan(score) else score
+        label = label_score.split(',')[0].split('AP@0.5IOU/')[-1]
+        if list_of_desired_classes:
+            if label in list_of_desired_classes:
+                label_scores.append((codes2names[label], score))
+        else:
+            label_scores.append((codes2names[label], score))
+    return label_scores
+
+
+def _load_dependecies(metrics_filepath, list_of_desired_classes=None, mappings_file=None):
+    with open(metrics_filepath) as f:
+        metrics = f.read().splitlines()
+
+    codes2names, names2codes = get_class_mappings(mappings_file)
+    if list_of_desired_classes:
+        if not all([cls.startswith('/') for cls in list_of_desired_classes]):
+            list_of_desired_classes = [names2codes.get(cls_name, 'notfound')
+                                       for cls_name in list_of_desired_classes]
+
+        assert all(
+            [cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are " \
+                                                                                "invalid "
+    return metrics, codes2names, names2codes
 
 
 def get_class_mappings(mappings_file):
