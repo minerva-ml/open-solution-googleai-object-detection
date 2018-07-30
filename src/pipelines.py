@@ -114,7 +114,7 @@ def postprocessing(model, label_encoder, config):
                    experiment_directory=config.env.cache_dirpath)
 
     submission_producer = Step(name='submission_producer',
-                               transformer=PredictionFormatter(**config.postprocessing.prediction_formatter),
+                               transformer=PredictionFormatter(),
                                input_steps=[label_decoder, decoder],
                                input_data=['input'],
                                adapter=Adapter({'images_data': E('input', 'images_data'),

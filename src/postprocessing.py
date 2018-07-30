@@ -11,10 +11,6 @@ from .utils import visualize_bboxes
 
 
 class PredictionFormatter(BaseTransformer):
-    def __init__(self, image_size):
-        super().__init__()
-        self.image_size = image_size
-
     def transform(self, images_data, results, decoder_dict):
         self.decoder_dict = decoder_dict
         image_ids = images_data['ImageID'].values.tolist()
@@ -38,9 +34,6 @@ class PredictionFormatter(BaseTransformer):
 
 
 class Visualizer(BaseTransformer):
-    def __init__(self):
-        super().__init__()
-
     def transform(self, images_data, results, decoder_dict):
         image_ids = images_data['ImageID'].values.tolist()
         decoder_dict = decoder_dict
