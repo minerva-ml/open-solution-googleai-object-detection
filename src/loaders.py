@@ -11,26 +11,41 @@ from PIL import Image
 from steppy.base import BaseTransformer
 
 from .retinanet import DataEncoder
-from .pipeline_config import MEAN, STD
+from .pipeline_config import MEAN, STD, SEED
+from .utils import get_target_size
 
 
-class RandomSubsetSampler(Sampler):
-    def __init__(self, images_data, sample_size, batch_size):
-        self.images_data = images_data
-        self.batch_size = batch_size
-        self.sample_size = min(sample_size, len(self.images_data))
-        self.sample_size = self.sample_size // self.batch_size * self.batch_size
-
-        self.indicies = self.images_data.sort_values('aspect_ratio').index.tolist()
+class FixedSizeSampler(Sampler):
+    def __init__(self, images_data, *,  sample_size=None, **kwargs):
+        self.images_data = images_data.sample(frac=1, random_state=SEED)
+        self.sample_size = len(self.images_data) if sample_size is None else min(sample_size, len(self.images_data))
 
     def __iter__(self):
-        subset = sorted(random.sample(range(len(self.indicies)), self.sample_size))
-        indicies = np.array([self.indicies[i] for i in subset])\
-            .reshape(self.sample_size // self.batch_size, self.batch_size)
-        np.random.shuffle(indicies)
-        indicies = indicies.flatten()
+        indices = random.sample(range(len(self.images_data)), self.sample_size)
+        return iter(indices)
 
-        return iter(indicies)
+    def __len__(self):
+        return self.sample_size
+
+
+class AspectRatioSampler(Sampler):
+    def __init__(self, images_data, *, batch_size=8, sample_size=None):
+        self.images_data = images_data
+        self.batch_size = batch_size
+        self.sample_size = len(self.images_data) if sample_size is None else min(sample_size, len(self.images_data))
+        self.sample_size = self.sample_size // self.batch_size * self.batch_size
+
+        self.indices = self.images_data.sort_values('aspect_ratio').index.tolist()
+
+    def __iter__(self):
+        subset = sorted(random.sample(range(len(self.indices)), self.sample_size))
+        indices = np.array([self.indices[i] for i in subset])\
+            .reshape(self.sample_size // self.batch_size, self.batch_size)
+        np.random.seed()
+        np.random.shuffle(indices)
+        indices = indices.flatten()
+
+        return iter(indices)
 
     def __len__(self):
         return self.sample_size
@@ -38,7 +53,7 @@ class RandomSubsetSampler(Sampler):
 
 class ImageDetectionDataset(Dataset):
     def __init__(self, images_data, annotations, annotations_human_labels, target_encoder, train_mode,
-                 short_dim, long_dim, image_transform=None):
+                 short_dim, long_dim, image_h, image_w, sampler_name, image_transform):
         super().__init__()
         self.images_data = images_data
         self.annotations = annotations
@@ -48,6 +63,9 @@ class ImageDetectionDataset(Dataset):
 
         self.short_dim = short_dim
         self.long_dim = long_dim
+        self.image_h = image_h
+        self.image_w = image_w
+        self.sampler_name = sampler_name
         self.image_transform = image_transform
 
     def __len__(self):
@@ -56,10 +74,7 @@ class ImageDetectionDataset(Dataset):
     def __getitem__(self, index):
 
         Xi = self.load_from_disk(index)
-        old_size = Xi.size
         Xi = self.resize_image(Xi)
-        new_size = Xi.size
-        # print(">>>>>>>> old size: {}, new size: {}".format(old_size, new_size))
 
         if self.annotations is not None:
             w, h = Xi.size
@@ -99,26 +114,12 @@ class ImageDetectionDataset(Dataset):
         return torch.FloatTensor(boxes), torch.FloatTensor(labels)
 
     def resize_image(self, image):
-        w, h = image.size
-        x, y = min(h, w), max(h, w)     # x < y
-        if y*self.short_dim > x*self.long_dim:
-            target_x = x * self.long_dim // y
-            target_y = self.long_dim
+        if self.sampler_name == 'fixed':
+            w, h = self.image_w, self.image_h
         else:
-            target_x = self.short_dim
-            target_y = y * self.short_dim // x
-
-        if h > w:
-            target_h, target_w = target_y, target_x
-        else:
-            target_h, target_w = target_x, target_y
-
-        target_h, target_w = target_h // 4 * 4, target_w // 4 * 4
-
-        # print("<<<<<<<<< old: {}, new: {}".format((h,w), (target_x,target_y)))
-
-        resize = transforms.Resize((target_h, target_w))
-
+            org_w, org_h = image.size
+            w, h = get_target_size(aspect_ratio=org_w/float(org_h), short_dim=self.short_dim, long_dim=self.long_dim)
+        resize = transforms.Resize((h, w))
         return resize(image)
 
     def alling_images(self, images):
@@ -129,13 +130,9 @@ class ImageDetectionDataset(Dataset):
             max_h, max_w = max(h, max_h), max(w, max_w)
             min_h, min_w = min(h, min_h), min(w, min_w)
 
-        # print('h: [{}, {}], w: [{}, {}]'.format(min_h, max_h, min_w, max_w))
-
         resize = transforms.Resize((max_h, max_w))
         allinged_images = []
         for image in images:
-            # h, w = image.size
-            # pad = transforms.Pad((0, 0, max_h - h, max_w - w), fill=255, padding_mode='constant')
             allinged_images.append(resize(image))
 
         return allinged_images
@@ -152,21 +149,9 @@ class ImageDetectionDataset(Dataset):
         imgs = [x[0] for x in batch]
         boxes = [x[1][0] for x in batch]
         labels = [x[1][1] for x in batch]
-        old = imgs[0].size
+
         imgs = self.alling_images(imgs)
-        new = imgs[0].size
-        # print("============ old: {}, new: {}".format(old, new))
         imgs = [self.image_transform(img) for img in imgs]
-
-
-        # from imageio import imwrite
-        # imwrite('im.jpg', imgs[0].numpy().transpose(1,2,0))
-        # print("<<<<<<<<<<<<<<<<")
-        # print(imgs[0].size())
-        # print(boxes[0])
-        # print(">>>>>>>>>>>>>")
-        # import pdb
-        # pdb.set_trace()
 
         inputs = torch.stack(imgs)
         _, _, h, w = inputs.size()
@@ -180,7 +165,6 @@ class ImageDetectionDataset(Dataset):
         clf_targets = clf_targets.unsqueeze(-1)
         targets = torch.cat((bbox_targets, clf_targets), 2)
 
-        # print("inputs: {}, targets: {}".format(inputs.size(), targets.size()))
         return inputs, targets
 
 
@@ -190,6 +174,15 @@ class ImageDetectionLoader(BaseTransformer):
         self.train_mode = train_mode
         self.loader_params = AttrDict(loader_params)
         self.dataset_params = AttrDict(dataset_params)
+
+        sampler_name = self.dataset_params.sampler_name
+        if sampler_name == 'fixed':
+            self.sampler = FixedSizeSampler
+        elif sampler_name == 'aspect ratio':
+            self.sampler = AspectRatioSampler
+        else:
+            msg = "expected sampler name from (fixed, aspect ratio), got {} instead".format(sampler_name)
+            raise Exception(msg)
 
         self.target_encoder = DataEncoder(**self.dataset_params.data_encoder)
         self.dataset = ImageDetectionDataset
@@ -224,12 +217,15 @@ class ImageDetectionLoader(BaseTransformer):
                                    train_mode=True,
                                    short_dim=self.dataset_params.short_dim,
                                    long_dim=self.dataset_params.long_dim,
+                                   image_h=self.dataset_params.image_h,
+                                   image_w=self.dataset_params.image_w,
+                                   sampler_name=self.dataset_params.sampler_name,
                                    image_transform=self.image_transform)
 
             datagen = DataLoader(dataset, **loader_params,
-                                 sampler=RandomSubsetSampler(images_data=images_data,
-                                                             sample_size=self.dataset_params.sample_size,
-                                                             batch_size=loader_params.batch_size),
+                                 sampler=self.sampler(images_data=images_data,
+                                                      sample_size=self.dataset_params.sample_size,
+                                                      batch_size=loader_params.batch_size),
                                  collate_fn=dataset.collate_fn)
         else:
             dataset = self.dataset(images_data,
@@ -239,13 +235,15 @@ class ImageDetectionLoader(BaseTransformer):
                                    train_mode=False,
                                    short_dim=self.dataset_params.short_dim,
                                    long_dim=self.dataset_params.long_dim,
+                                   image_h=self.dataset_params.image_h,
+                                   image_w=self.dataset_params.image_w,
+                                   sampler_name=self.dataset_params.sampler_name,
                                    image_transform=self.image_transform)
 
             if annotations is not None:
                 datagen = DataLoader(dataset, **loader_params,
-                                     sampler=RandomSubsetSampler(images_data=images_data,
-                                                                 sample_size=self.dataset_params.sample_size,
-                                                                 batch_size=loader_params.batch_size),
+                                     sampler=self.sampler(images_data=images_data,
+                                                          batch_size=loader_params.batch_size),
                                      collate_fn=dataset.collate_fn)
             else:
                 datagen = DataLoader(dataset, **loader_params)

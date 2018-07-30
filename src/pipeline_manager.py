@@ -52,9 +52,12 @@ def prepare_metadata():
     else:
         raise NotImplementedError
 
+    test_image_ids = get_img_ids_from_folder(PARAMS.test_imgs_dir)
+
     metadata = generate_metadata(num_threads=PARAMS.num_threads,
                                  train_image_ids=train_img_ids, train_image_dir=PARAMS.train_imgs_dir,
-                                 valid_image_ids=valid_img_ids, valid_image_dir=PARAMS.train_imgs_dir)
+                                 valid_image_ids=valid_img_ids, valid_image_dir=PARAMS.train_imgs_dir,
+                                 test_image_ids=test_image_ids, test_image_dir=PARAMS.test_imgs_dir)
 
     metadata.to_csv(PARAMS.metadata_filepath)
 
@@ -136,13 +139,14 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     if not os.path.isfile(PARAMS.metadata_filepath):
         prepare_metadata()
 
-    n_ids = 100 if dev_mode else None
-    test_img_ids = get_img_ids_from_folder(PARAMS.test_imgs_dir, n_ids=n_ids)
+    metadata = pd.read_csv(PARAMS.metadata_filepath)
+    meta_test = metadata['is_test' == 1]
 
-    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.test_imgs_dir
+    if dev_mode:
+        meta_test = meta_test.sample(100, random_state=SEED)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
-    prediction = generate_prediction(test_img_ids, pipeline, chunk_size)
+    prediction = generate_prediction(meta_test, pipeline, chunk_size)
 
     sample_submission = pd.read_csv(PARAMS.sample_submission)
     prediction = add_missing_image_ids(prediction, sample_submission)
@@ -267,6 +271,6 @@ def _get_input_data(dev_mode=False, metadata=None):
 
     if dev_mode:
         meta_train = meta_train.sample(100, random_state=SEED)
-        meta_valid = meta_valid.sample(960, random_state=SEED)
+        meta_valid = meta_valid.sample(20, random_state=SEED)
 
     return annotations, annotations_human_labels, meta_train.reset_index(drop=True), meta_valid.reset_index(drop=True)

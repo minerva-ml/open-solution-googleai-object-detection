@@ -7,6 +7,7 @@ from math import sqrt
 import multiprocessing as mp
 
 from steppy.base import BaseTransformer
+from .utils import get_target_size
 
 
 class FPN(nn.Module):
@@ -356,10 +357,14 @@ class DataEncoder(BaseDataHandler):
 
 
 class DataDecoder(BaseDataHandler, BaseTransformer):
-    def __init__(self, short_dim, long_dim, num_threads, cls_thrs, nms_thrs, **kwargs):
+    def __init__(self, short_dim, long_dim, image_h, image_w, sampler_name, num_threads, cls_thrs, nms_thrs, **kwargs):
         super().__init__(**kwargs)
         self.short_dim = short_dim
         self.long_dim = long_dim
+        self.image_h = image_h
+        self.image_w = image_w
+        self.sampler_name = sampler_name
+
         self.num_threads = num_threads
         self.cls_thrs = cls_thrs
         self.nms_thrs = nms_thrs
@@ -382,11 +387,15 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
           boxes: (tensor) decode box locations, sized [#obj,4].
           labels: (tensor) class labels for each box, sized [#obj,].
         """
-        input_size = self._get_input_size(aspect_ratio)
+        if self.sampler_name == 'fixed':
+            w, h = self.image_w, self.image_h
+        else:
+            w, h = get_target_size(aspect_ratio=aspect_ratio, short_dim=self.short_dim, long_dim=self.long_dim)
 
-        input_size = torch.Tensor([input_size, input_size]) if isinstance(input_size, int) \
-            else torch.Tensor(input_size)
+        input_size = torch.Tensor([w, h])
         anchor_boxes = self._get_anchor_boxes(input_size)
+
+        # print(anchor_boxes.size(), loc_preds.size())
 
         loc_xy = loc_preds[:, :2]
         loc_wh = loc_preds[:, 2:]
@@ -405,31 +414,10 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
         ids = score > self.cls_thrs
         ids = ids.nonzero().squeeze()  # [#obj,]
         if len(ids) == 0:
-            # import pdb
-            # pdb.set_trace()
             return torch.Tensor([]), torch.Tensor([]), torch.Tensor([])
         keep = box_nms(boxes[ids], score[ids], threshold=self.nms_thrs)
 
         return boxes[ids][keep], labels[ids][keep], score[ids][keep]
-
-    def _get_input_size(self, aspect_ratio):
-        w, h = aspect_ratio, 1  # TODO
-        x, y = min(h, w), max(h, w)     # x < y
-        if y*self.short_dim > x*self.long_dim:
-            target_x = x * self.long_dim // y
-            target_y = self.long_dim
-        else:
-            target_x = self.short_dim
-            target_y = y * self.short_dim // x
-
-        if h > w:
-            target_h, target_w = target_y, target_x
-        else:
-            target_h, target_w = target_x, target_y
-
-        target_h, target_w = target_h // 4 * 4, target_w // 4 * 4
-
-        return target_w, target_h
 
 
 def one_hot_embedding(labels, num_classes):

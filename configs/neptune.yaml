@@ -46,6 +46,7 @@ parameters:
   validate_with_map: 1
   small_annotations_size: 20
   kaggle_message: 'solution-1'
+  sampler_name: 'random'     # from {'random', 'aspect ratio'}
 
 # General parameters
   short_dim: 400

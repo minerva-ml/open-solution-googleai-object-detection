@@ -558,3 +558,19 @@ def generate_metadata(num_threads=10,
         metadata = pd.concat([metadata, _generate_metadata(test_image_ids, test_image_dir, 0, 0, 1)])
 
     return metadata.sort_values('aspect_ratio').reset_index(drop=True)
+
+
+def get_target_size(aspect_ratio, short_dim, long_dim):
+    w, h = aspect_ratio, 1
+    x, y = min(h, w), max(h, w)     # x < y
+    if y*short_dim > x*long_dim:
+        target_x = x * long_dim // y
+        target_y = long_dim
+    else:
+        target_x = short_dim
+        target_y = y * short_dim // x
+
+    target_h, target_w = (target_y, target_x) if h > w else (target_x, target_y)
+    target_h, target_w = int(target_h // 4 * 4), int(target_w // 4 * 4)
+
+    return target_w, target_h
