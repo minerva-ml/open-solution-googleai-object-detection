@@ -29,47 +29,28 @@ class PredictionFormatter(BaseTransformer):
         for bbox, label, score in zip(bboxes, labels, scores):
             prediction_list.append(self._get_class_id(label))
             prediction_list.append(str(score))
-            prediction_list.extend(self._get_bbox_relative(bbox))
+            prediction_list.extend([str(coord) for coord in bbox])
         prediction_string = " ".join(prediction_list)
         return prediction_string
 
     def _get_class_id(self, label):
         return self.decoder_dict[label]
 
-    def _get_bbox_relative(self, bbox):
-        h = self.image_size[0]
-        w = self.image_size[1]
-        # x_min = np.clip(bbox[0] / h, 0.0, 1.0)
-        # y_min = np.clip(bbox[1] / w, 0.0, 1.0)
-        # x_max = np.clip(bbox[2] / h, 0.0, 1.0)
-        # y_max = np.clip(bbox[3] / w, 0.0, 1.0)
-
-        x_min = np.clip(bbox[0], 0.0, 1.0)
-        y_min = np.clip(bbox[1], 0.0, 1.0)
-        x_max = np.clip(bbox[2], 0.0, 1.0)
-        y_max = np.clip(bbox[3], 0.0, 1.0)
-        result = [x_min, y_min, x_max, y_max]
-        return [str(r) for r in result]
-
 
 class Visualizer(BaseTransformer):
-    def __init__(self, image_size):
+    def __init__(self):
         super().__init__()
-        self.image_size = image_size
 
     def transform(self, images_data, results, decoder_dict):
         image_ids = images_data['ImageID'].values.tolist()
         decoder_dict = decoder_dict
         all_detections, all_boxes = [], []
-        # import pdb
-        # pdb.set_trace()
         for i, (image_id, detections) in enumerate(zip(image_ids, results)):
             if not bool(detections[0].size()):
                 continue
             LOGGER.info("Drawing boxes on image {}/{}".format(i, len(results)))
             image = PIL.Image.open(
                 os.path.join(SOLUTION_CONFIG['loader']['dataset_params']['images_dir'], image_id + '.jpg'))
-            h, w = self.image_size  # s resize size
             width, height = image.size  # original image size
             box = detections[0].numpy()
             classes = detections[1].numpy()
@@ -79,12 +60,6 @@ class Visualizer(BaseTransformer):
             df.columns = ['x1', 'y1', 'x2', 'y2', 'class_id', 'score']
             df['class_name'] = df.class_id.map(decoder_dict)
             df.class_name = df.class_name.map(CODES2NAMES)
-
-            # revert resize
-            # df.x1 = df.x1 / h
-            # df.y1 = df.y1 / w
-            # df.x2 = df.x2 / h
-            # df.y2 = df.y2 / w
 
             # to absolute
             df['x1'] = df['x1'] * width

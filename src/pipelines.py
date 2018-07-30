@@ -90,7 +90,7 @@ def visualizer(model, label_encoder, config):
                    experiment_directory=config.env.cache_dirpath)
 
     visualize = Step(name='visualizer',
-                     transformer=Visualizer(**config.postprocessing.prediction_formatter),
+                     transformer=Visualizer(),
                      input_steps=[label_decoder, decoder],
                      input_data=['input'],
                      adapter=Adapter({'images_data': E('input', 'images_data'),

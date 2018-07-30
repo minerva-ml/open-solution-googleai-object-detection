@@ -127,9 +127,6 @@ SOLUTION_CONFIG = AttrDict({
             'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS),
             'cls_thrs': params.classification_threshold,
             'nms_thrs': params.nms_threshold
-        },
-        'prediction_formatter': {
-            'image_size': (params.image_h, params.image_w)
         }
     },
 })
