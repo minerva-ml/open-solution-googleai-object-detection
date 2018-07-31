@@ -47,6 +47,7 @@ SOLUTION_CONFIG = AttrDict({
                                   'sampler_name': params.sampler_name,
                                   'pad_method': params.pad_method,
                                   'sample_size': params.training_sample_size,
+                                  'even_class_sampling': params.even_class_sampling,
                                   'data_encoder': {'aspect_ratios': ASPECT_RATIOS,
                                                    'scale_ratios': SCALE_RATIOS,
                                                    'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS)}

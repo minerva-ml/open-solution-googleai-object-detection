@@ -49,6 +49,7 @@ parameters:
 
 # General parameters
   sampler_name: 'fixed'     # from {'fixed', 'aspect ratio'}
+  even_class_sampling: 1
   fixed_h: 512
   fixed_w: 512
   short_dim: 400
