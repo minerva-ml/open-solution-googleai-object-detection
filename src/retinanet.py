@@ -7,6 +7,7 @@ from math import sqrt
 import multiprocessing as mp
 
 from steppy.base import BaseTransformer
+from .utils import get_target_size
 
 
 class FPN(nn.Module):
@@ -267,15 +268,14 @@ class BaseDataHandler():
         self.aspect_ratios = aspect_ratios
         self.scale_ratios = scale_ratios
         self.num_anchors = num_anchors
-        self.anchor_wh = self._get_anchor_hw()
+        self.anchor_wh = self._get_anchor_wh()
 
-    def _get_anchor_hw(self):
-        """Compute anchor height and width for each feature map.
-
+    def _get_anchor_wh(self):
+        '''Compute anchor width and height for each feature map.
         Returns:
-          anchor_hw: (tensor) anchor hw, sized [#fm, #anchors_per_cell, 2].
-        """
-        anchor_hw = []
+          anchor_wh: (tensor) anchor wh, sized [#fm, #anchors_per_cell, 2].
+        '''
+        anchor_wh = []
         for s in self.anchor_areas:
             for ar in self.aspect_ratios:  # w/h = ar
                 h = sqrt(s / ar)
@@ -283,20 +283,18 @@ class BaseDataHandler():
                 for sr in self.scale_ratios:  # scale
                     anchor_h = h * sr
                     anchor_w = w * sr
-                    anchor_hw.append([anchor_h, anchor_w])
+                    anchor_wh.append([anchor_w, anchor_h])
         num_fms = len(self.anchor_areas)
-        return torch.Tensor(anchor_hw).view(num_fms, -1, 2)
+        return torch.Tensor(anchor_wh).view(num_fms, -1, 2)
 
     def _get_anchor_boxes(self, input_size):
-        """Compute anchor boxes for each feature map.
-
+        '''Compute anchor boxes for each feature map.
         Args:
-          input_size: (tensor) model input size of (h, w).
-
+          input_size: (tensor) model input size of (w,h).
         Returns:
           boxes: (list) anchor boxes for each feature map. Each of size [#anchors,4],
                         where #anchors = fmw * fmh * #anchors_per_cell
-        """
+        '''
         num_fms = len(self.anchor_areas)
         fm_sizes = [(input_size / pow(2., i + 3)).ceil() for i in range(num_fms)]  # p3 -> p7 feature map sizes
 
@@ -304,11 +302,11 @@ class BaseDataHandler():
         for i in range(num_fms):
             fm_size = fm_sizes[i]
             grid_size = input_size / fm_size
-            fm_h, fm_w = int(fm_size[0]), int(fm_size[1])
-            xy = meshgrid(fm_h, fm_w) + 0.5  # [fm_h*fm_w, 2]
-            xy = (xy * grid_size).view(fm_w, fm_h, 1, 2).expand(fm_w, fm_h, self.num_anchors, 2)
-            hw = self.anchor_wh[i].view(1, 1, self.num_anchors, 2).expand(fm_w, fm_h, self.num_anchors, 2)
-            box = torch.cat([xy, hw], 3)  # [x,y,w,h]
+            fm_w, fm_h = int(fm_size[0]), int(fm_size[1])
+            xy = meshgrid(fm_w, fm_h) + 0.5  # [fm_h*fm_w, 2]
+            xy = (xy * grid_size).view(fm_h, fm_w, 1, 2).expand(fm_h, fm_w, self.num_anchors, 2)
+            wh = self.anchor_wh[i].view(1, 1, self.num_anchors, 2).expand(fm_h, fm_w, self.num_anchors, 2)
+            box = torch.cat([xy, wh], 3)  # [x,y,w,h]
             boxes.append(box.view(-1, 4))
         return torch.cat(boxes, 0)
 
@@ -327,7 +325,7 @@ class DataEncoder(BaseDataHandler):
         Args:
           boxes: (tensor) bounding boxes of (xmin,ymin,xmax,ymax), sized [#obj, 4].
           labels: (tensor) object class labels, sized [#obj,].
-          input_size: (int/tuple) model input size of (h,w).
+          input_size: (int/tuple) model input size of (w,h).
 
         Returns:
           loc_targets: (tensor) encoded bounding boxes, sized [#anchors,4].
@@ -345,8 +343,8 @@ class DataEncoder(BaseDataHandler):
             boxes = boxes[max_ids]
 
             loc_xy = (boxes[:, :2] - anchor_boxes[:, :2]) / anchor_boxes[:, 2:]
-            loc_hw = torch.log(boxes[:, 2:] / anchor_boxes[:, 2:])
-            loc_targets = torch.cat([loc_xy, loc_hw], 1)
+            loc_wh = torch.log(boxes[:, 2:] / anchor_boxes[:, 2:])
+            loc_targets = torch.cat([loc_xy, loc_wh], 1)
             cls_targets = labels[max_ids]
 
             cls_targets[max_ious < 0.5] = 0
@@ -359,42 +357,57 @@ class DataEncoder(BaseDataHandler):
 
 
 class DataDecoder(BaseDataHandler, BaseTransformer):
-    def __init__(self, input_size, num_threads, cls_thrs, nms_thrs, **kwargs):
+    def __init__(self, short_dim, long_dim, fixed_h, fixed_w, sampler_name, num_threads, cls_thrs, nms_thrs, **kwargs):
         super().__init__(**kwargs)
-        self.input_size = input_size
+        self.short_dim = short_dim
+        self.long_dim = long_dim
+        self.fixed_h = fixed_h
+        self.fixed_w = fixed_w
+        self.sampler_name = sampler_name
+
         self.num_threads = num_threads
         self.cls_thrs = cls_thrs
         self.nms_thrs = nms_thrs
 
-    def transform(self, box_predictions, class_predictions):
+    def transform(self, images_data, box_predictions, class_predictions):
         with mp.pool.ThreadPool(self.num_threads) as executor:
-            results = executor.map(lambda input_: self.decode(*input_, input_size=self.input_size),
-                                   zip(box_predictions, class_predictions))
+            results = executor.map(lambda input_: self.decode(*input_),
+                                   zip(box_predictions, class_predictions, images_data['aspect_ratio'].values))
         return {'results': results}
 
-    def decode(self, loc_preds, cls_preds, input_size):
+    def decode(self, loc_preds, cls_preds, aspect_ratio):
         """Decode outputs back to bouding box locations and class labels.
 
         Args:
           loc_preds: (tensor) predicted locations, sized [#anchors, 4].
           cls_preds: (tensor) predicted class labels, sized [#anchors, #classes].
-          input_size: (int/tuple) model input size of (h,w).
+          input_size: (int/tuple) model input size of (w,h).
 
         Returns:
           boxes: (tensor) decode box locations, sized [#obj,4].
           labels: (tensor) class labels for each box, sized [#obj,].
         """
+        if self.sampler_name == 'fixed':
+            w, h = self.fixed_w, self.fixed_h
+        else:
+            w, h = get_target_size(aspect_ratio=aspect_ratio, short_dim=self.short_dim, long_dim=self.long_dim)
 
-        input_size = torch.Tensor([input_size, input_size]) if isinstance(input_size, int) \
-            else torch.Tensor(input_size)
+        input_size = torch.Tensor([w, h])
         anchor_boxes = self._get_anchor_boxes(input_size)
 
+        # print(anchor_boxes.size(), loc_preds.size())
+
         loc_xy = loc_preds[:, :2]
-        loc_hw = loc_preds[:, 2:]
+        loc_wh = loc_preds[:, 2:]
 
         xy = loc_xy * anchor_boxes[:, 2:] + anchor_boxes[:, :2]
-        wh = loc_hw.exp() * anchor_boxes[:, 2:]
+        wh = loc_wh.exp() * anchor_boxes[:, 2:]
         boxes = torch.cat([xy - wh / 2, xy + wh / 2], 1)  # [#anchors,4]
+
+        w, h = input_size
+        boxes[:, [0, 2]] /= w
+        boxes[:, [1, 3]] /= h
+        boxes = torch.clamp(boxes, min=0.0, max=1.0)
 
         score, labels = cls_preds.sigmoid().max(1)  # [#anchors,]
         labels += 1
@@ -403,6 +416,7 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
         if len(ids) == 0:
             return torch.Tensor([]), torch.Tensor([]), torch.Tensor([])
         keep = box_nms(boxes[ids], score[ids], threshold=self.nms_thrs)
+
         return boxes[ids][keep], labels[ids][keep], score[ids][keep]
 
 

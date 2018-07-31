@@ -126,6 +126,7 @@ class Retina(ModelParallel):
                 X = Variable(X, volatile=True)
 
             outputs = self.model(X)
+
             if isinstance(outputs, list):
                 outputs = [output.data.cpu() for output in outputs]
                 outputs = torch.cat(outputs, dim=0)

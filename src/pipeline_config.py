@@ -27,7 +27,6 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
                  'num_workers': params.num_workers,
                  'num_classes': N_SUB_CLASSES if N_SUB_CLASSES else params.num_classes,
-                 'img_H-W': (params.image_h, params.image_w),
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
                  'loader_mode': params.loader_mode,
@@ -40,16 +39,20 @@ SOLUTION_CONFIG = AttrDict({
 
     'label_encoder': {'colname': LABEL_COLUMN
                       },
-    'loader': {'dataset_params': {'h': params.image_h,
-                                  'w': params.image_w,
+    'loader': {'dataset_params': {'images_dir': None,
+                                  'short_dim': params.short_dim,
+                                  'long_dim': params.long_dim,
+                                  'fixed_h': params.fixed_h,
+                                  'fixed_w': params.fixed_w,
+                                  'sampler_name': params.sampler_name,
                                   'pad_method': params.pad_method,
-                                  'images_dir': None,
                                   'sample_size': params.training_sample_size,
                                   'data_encoder': {'aspect_ratios': ASPECT_RATIOS,
                                                    'scale_ratios': SCALE_RATIOS,
                                                    'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS)}
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
+                                              'shuffle': False,
                                               'num_workers': params.num_workers,
                                               'pin_memory': params.pin_memory
                                               },
@@ -113,16 +116,17 @@ SOLUTION_CONFIG = AttrDict({
     },
     'postprocessing': {
         'data_decoder': {
-            'input_size': (params.image_h, params.image_w),
+            'short_dim': params.short_dim,
+            'long_dim': params.long_dim,
+            'fixed_h': params.fixed_h,
+            'fixed_w': params.fixed_w,
+            'sampler_name': params.sampler_name,
             'num_threads': params.num_threads,
             'aspect_ratios': ASPECT_RATIOS,
             'scale_ratios': SCALE_RATIOS,
             'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS),
             'cls_thrs': params.classification_threshold,
             'nms_thrs': params.nms_threshold
-        },
-        'prediction_formatter': {
-            'image_size': (params.image_h, params.image_w)
         }
     },
 })

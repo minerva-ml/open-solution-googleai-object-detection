@@ -32,6 +32,7 @@ parameters:
   sample_submission: ''
   experiment_dir:  ''
   class_mappings_filepath: ''
+  metadata_filepath: ''
 
 # Execution
   clean_experiment_directory_before_training: 1
@@ -47,8 +48,11 @@ parameters:
   kaggle_message: 'solution-1'
 
 # General parameters
-  image_h: 512
-  image_w: 512
+  sampler_name: 'fixed'     # from {'fixed', 'aspect ratio'}
+  fixed_h: 512
+  fixed_w: 512
+  short_dim: 400
+  long_dim: 600
   image_channels: 3
   pad_method: 'resize'
   desired_class_subset: '[]'
@@ -65,7 +69,7 @@ parameters:
   epochs_nr: 100
   batch_size_train: 8
   batch_size_inference: 8
-  lr: 0.0005
+  lr: 0.00001
   momentum: 0.9
   gamma: 1.0
   patience: 30

@@ -7,11 +7,16 @@ import pathlib
 import random
 import subprocess
 import sys
-from collections import Iterable
+from collections import Iterable, defaultdict
 from itertools import chain
 from itertools import cycle
+import multiprocessing as mp
 
 import matplotlib as mpl
+if os.environ.get('DISPLAY', '') == '':
+    print('no display found. Using non-interactive Agg backend')
+    mpl.use('Agg')
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -203,6 +208,14 @@ def generate_list_chunks(meta, chunk_size):
     chunk_nr = int(math.ceil(n_rows / chunk_size))
     for i in tqdm(range(chunk_nr)):
         meta_chunk = meta[i * chunk_size:(i + 1) * chunk_size]
+        yield meta_chunk
+
+
+def generate_data_frame_chunks(meta, chunk_size):
+    n_rows = meta.shape[0]
+    chunk_nr = int(math.ceil(n_rows / chunk_size))
+    for i in tqdm(range(chunk_nr)):
+        meta_chunk = meta.iloc[i * chunk_size:(i + 1) * chunk_size]
         yield meta_chunk
 
 
@@ -523,3 +536,90 @@ def visualize_bboxes(image, detections_df, threshold=0.1, return_format='PIL'):
 
     else:
         return detection_figure
+
+
+def _get_image_parameters(image_path):
+    im = Image.open(image_path)
+    w, h = im.size
+    aspect_ratio = w/float(h)
+    return w, h, aspect_ratio
+
+
+def generate_metadata(num_threads=10,
+                      train_image_ids=None, train_image_dir=None,
+                      valid_image_ids=None, valid_image_dir=None,
+                      test_image_ids=None, test_image_dir=None):
+
+    def _generate_metadata(imageIds, image_dir, is_train, is_valid, is_test):
+
+        df_dict = defaultdict(lambda: [])
+        images_paths = []
+        for imgId in tqdm(imageIds):
+            df_dict['ImageID'].append(imgId)
+            image_path = os.path.join(image_dir, imgId + '.jpg')
+            images_paths.append(image_path)
+            df_dict['is_train'].append(is_train)
+            df_dict['is_valid'].append(is_valid)
+            df_dict['is_test'].append(is_test)
+
+        process_nr = min(num_threads, len(imageIds))
+        with mp.pool.ThreadPool(process_nr) as executor:
+            images_params = np.array(list(tqdm(executor.imap(_get_image_parameters, images_paths),
+                                      total=len(imageIds))))
+        df_dict['image_w'] = images_params[:, 0].tolist()
+        df_dict['image_h'] = images_params[:, 1].tolist()
+        df_dict['aspect_ratio'] = images_params[:, 2].tolist()
+
+        return pd.DataFrame.from_dict(df_dict)
+
+    columns = ['ImageID', 'aspect_ratio', 'is_train', 'is_valid', 'is_test', 'image_h', 'image_w']
+    metadata = pd.DataFrame(columns=columns)
+
+    if train_image_ids is not None:
+        metadata = pd.concat([metadata, _generate_metadata(train_image_ids, train_image_dir, 1, 0, 0)])
+    if valid_image_ids is not None:
+        metadata = pd.concat([metadata, _generate_metadata(valid_image_ids, valid_image_dir, 0, 1, 0)])
+    if test_image_ids is not None:
+        metadata = pd.concat([metadata, _generate_metadata(test_image_ids, test_image_dir, 0, 0, 1)])
+
+    return metadata.sort_values('aspect_ratio').reset_index(drop=True)
+
+
+def get_target_size(aspect_ratio, short_dim, long_dim):
+    w, h = aspect_ratio, 1
+    x, y = min(h, w), max(h, w)     # x < y
+    if y*short_dim > x*long_dim:
+        target_x = x * long_dim // y
+        target_y = long_dim
+    else:
+        target_x = short_dim
+        target_y = y * short_dim // x
+
+    target_h, target_w = (target_y, target_x) if h > w else (target_x, target_y)
+    target_h, target_w = int(target_h // 4 * 4), int(target_w // 4 * 4)
+
+    return target_w, target_h
+
+
+def prepare_metadata(annotations_filepath, valid_ids_filepath, default_valid_ids, metadata_filepath,
+                     train_image_dir, valid_image_dir, test_image_dir,
+                     id_column, num_threads, logger):
+    logger.info('preparing metadata')
+    annotations = pd.read_csv(annotations_filepath)
+    valid_ids_data = pd.read_csv(valid_ids_filepath)
+
+    if default_valid_ids:
+        valid_ids_data = valid_ids_data
+        valid_img_ids = valid_ids_data[id_column].tolist()
+        train_img_ids = list(set(annotations[id_column].values) - set(valid_img_ids))
+    else:
+        raise NotImplementedError
+
+    test_image_ids = get_img_ids_from_folder(test_image_dir)
+
+    metadata = generate_metadata(num_threads=num_threads,
+                                 train_image_ids=train_img_ids, train_image_dir=train_image_dir,
+                                 valid_image_ids=valid_img_ids, valid_image_dir=valid_image_dir,
+                                 test_image_ids=test_image_ids, test_image_dir=test_image_dir)
+
+    metadata.to_csv(metadata_filepath)
