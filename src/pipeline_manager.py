@@ -50,9 +50,11 @@ class PipelineManager:
     def make_submission(self, submission_filepath):
         make_submission(submission_filepath)
 
-    def visualize(self, pipeline_name, image_dir=None, single_image=None, n_files=16, show_popups=False):
+    def visualize(self, pipeline_name, image_dir=None, single_image=None, n_files=16, show_popups=False,
+                  classes_to_visualize=None, nms_threshold=None, classification_threshold=None):
         visualize(pipeline_name=pipeline_name, image_dir=image_dir, single_image=single_image, n_files=n_files,
-                  show_popups=show_popups)
+                  show_popups=show_popups, classes_to_visualize=classes_to_visualize, nms_threshold=nms_threshold,
+                  classification_threshold=classification_threshold)
 
 
 def train(pipeline_name, dev_mode):
@@ -152,7 +154,19 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
         make_submission(submission_filepath)
 
 
-def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show_popups=False):
+def visualize(pipeline_name,
+              image_dir=None,
+              single_image=None,
+              n_files=16,
+              show_popups=False,
+              classes_to_visualize=None,
+              classification_threshold=None,
+              nms_threshold=None):
+    if classification_threshold:
+        SOLUTION_CONFIG['postprocessing']['data_decoder']['cls_thrs'] = classification_threshold
+    if nms_threshold:
+        SOLUTION_CONFIG['postprocessing']['data_decoder']['nms_thrs'] = nms_threshold
+
     if image_dir:
         SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = image_dir
         img_ids = get_img_ids_from_folder(image_dir, n_ids=n_files)
@@ -160,8 +174,8 @@ def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show
         *_, images_data = _get_input_data(metadata=metadata, reduce=False)
     else:
         SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
-        *_, images_data = _get_input_data()
-        images_data = images_data.sample(n_files, random_state=SEED)
+        *_, images_data = _get_input_data(classes_to_visualize=classes_to_visualize)
+        images_data = images_data.sample(n_files, random_state=SEED, replace=True)
 
     if single_image:
         raise NotImplemented
@@ -238,20 +252,23 @@ def _generate_prediction_in_chunks(images_data, pipeline, chunk_size):
     return predictions
 
 
-def _get_input_data(dev_mode=False, metadata=None, reduce=True):
+def _get_input_data(dev_mode=False, metadata=None, reduce=True, classes_to_visualize=None):
     annotations = pd.read_csv(PARAMS.annotations_filepath)
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
+
+    classes_to_visualize = classes_to_visualize or DESIRED_CLASS_SUBSET
+
     if metadata is None:
         metadata = pd.read_csv(PARAMS.metadata_filepath)
 
-    if N_SUB_CLASSES > 0 and reduce:
+    if classes_to_visualize and reduce:
         LOGGER.info("Training on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
         annotations = reduce_number_of_classes(annotations,
-                                               DESIRED_CLASS_SUBSET,
+                                               classes_to_visualize,
                                                PARAMS.class_mappings_filepath)
 
         annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
-                                                            DESIRED_CLASS_SUBSET,
+                                                            classes_to_visualize,
                                                             PARAMS.class_mappings_filepath)
 
         img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()

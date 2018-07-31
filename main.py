@@ -27,13 +27,23 @@ def train(pipeline_name, dev_mode):
 @click.option('-s', '--single_image', help='predict single image and visualize', required=False)
 @click.option('-n', '--n_files', help='number of files to visualize', type=int, default=16)
 @click.option('-sp', '--show_popups', help="if showing images in a popup window")
-def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show_popups=False):
+@click.option('-cl', '--classes_to_visualize', help="Reduce the vis to subset of classes")
+@click.option('-clsthr', '--classification_threshold', type=float)
+@click.option('-nmsthr', '--nms_threshold', type=float)
+def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show_popups=False,
+              classes_to_visualize=None, nms_threshold=None, classification_threshold=None):
     """
 
     Makes predictions on test_images (or images in image_dir) draw bounding boxes on them and sends to neptune.
     If show pop_ups it will display the predictions locally in a window popup
     """
-    pipeline_manager.visualize(pipeline_name, image_dir, single_image, n_files, show_popups)
+    if classes_to_visualize:
+        classes_to_visualize = classes_to_visualize.split(',')
+        classes_to_visualize = list(filter(None, classes_to_visualize))  # filter out empty strings
+
+    pipeline_manager.visualize(pipeline_name, image_dir, single_image,
+                               n_files, show_popups, classes_to_visualize,
+                               nms_threshold, classification_threshold)
 
 
 @main.command()
