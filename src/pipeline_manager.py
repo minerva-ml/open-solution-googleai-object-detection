@@ -145,10 +145,10 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
         prepare_metadata()
 
     metadata = pd.read_csv(PARAMS.metadata_filepath)
-    meta_test = metadata['is_test' == 1]
-
+    meta_test = metadata[metadata['is_test'] == 1]
     if dev_mode:
         meta_test = meta_test.sample(100, random_state=SEED)
+    meta_test = meta_test.reset_index(drop=True)
 
     pipeline = PIPELINES[pipeline_name]['inference'](SOLUTION_CONFIG)
     prediction = generate_prediction(meta_test, pipeline, chunk_size)

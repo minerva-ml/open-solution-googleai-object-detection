@@ -357,12 +357,12 @@ class DataEncoder(BaseDataHandler):
 
 
 class DataDecoder(BaseDataHandler, BaseTransformer):
-    def __init__(self, short_dim, long_dim, image_h, image_w, sampler_name, num_threads, cls_thrs, nms_thrs, **kwargs):
+    def __init__(self, short_dim, long_dim, fixed_h, fixed_w, sampler_name, num_threads, cls_thrs, nms_thrs, **kwargs):
         super().__init__(**kwargs)
         self.short_dim = short_dim
         self.long_dim = long_dim
-        self.image_h = image_h
-        self.image_w = image_w
+        self.fixed_h = fixed_h
+        self.fixed_w = fixed_w
         self.sampler_name = sampler_name
 
         self.num_threads = num_threads
@@ -388,7 +388,7 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
           labels: (tensor) class labels for each box, sized [#obj,].
         """
         if self.sampler_name == 'fixed':
-            w, h = self.image_w, self.image_h
+            w, h = self.fixed_w, self.fixed_h
         else:
             w, h = get_target_size(aspect_ratio=aspect_ratio, short_dim=self.short_dim, long_dim=self.long_dim)
 

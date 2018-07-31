@@ -16,8 +16,8 @@ from .utils import get_target_size
 
 
 class FixedSizeSampler(Sampler):
-    def __init__(self, images_data, *,  sample_size=None, **kwargs):
-        self.images_data = images_data.sample(frac=1, random_state=SEED)
+    def __init__(self, images_data, *,  sample_size=None, shuffle=True, **kwargs):
+        self.images_data = images_data.sample(frac=1, random_state=SEED) if shuffle else images_data
         self.sample_size = len(self.images_data) if sample_size is None else min(sample_size, len(self.images_data))
 
     def __iter__(self):
@@ -29,21 +29,24 @@ class FixedSizeSampler(Sampler):
 
 
 class AspectRatioSampler(Sampler):
-    def __init__(self, images_data, *, batch_size=8, sample_size=None):
+    def __init__(self, images_data, *, batch_size=8, sample_size=None, shuffle=True, **kwargs):
         self.images_data = images_data
         self.batch_size = batch_size
         self.sample_size = len(self.images_data) if sample_size is None else min(sample_size, len(self.images_data))
-        self.sample_size = self.sample_size // self.batch_size * self.batch_size
-
+        self.num_batches =  self.sample_size // self.batch_size
+        self.sample_size = self.num_batches * self.batch_size
         self.indices = self.images_data.sort_values('aspect_ratio').index.tolist()
+        self.shuffle = shuffle
 
     def __iter__(self):
         subset = sorted(random.sample(range(len(self.indices)), self.sample_size))
-        indices = np.array([self.indices[i] for i in subset])\
-            .reshape(self.sample_size // self.batch_size, self.batch_size)
-        np.random.seed()
-        np.random.shuffle(indices)
-        indices = indices.flatten()
+
+        indices = np.array([self.indices[i] for i in subset])
+        if self.shuffle:
+            indices = indices.reshape(self.num_batches, self.batch_size)
+            np.random.seed()
+            np.random.shuffle(indices)
+            indices = indices.flatten()
 
         return iter(indices)
 
@@ -53,7 +56,7 @@ class AspectRatioSampler(Sampler):
 
 class ImageDetectionDataset(Dataset):
     def __init__(self, images_data, annotations, annotations_human_labels, target_encoder, train_mode,
-                 short_dim, long_dim, image_h, image_w, sampler_name, image_transform):
+                 short_dim, long_dim, fixed_h, fixed_w, sampler_name, image_transform):
         super().__init__()
         self.images_data = images_data
         self.annotations = annotations
@@ -63,8 +66,8 @@ class ImageDetectionDataset(Dataset):
 
         self.short_dim = short_dim
         self.long_dim = long_dim
-        self.image_h = image_h
-        self.image_w = image_w
+        self.fixed_h = fixed_h
+        self.fixed_w = fixed_w
         self.sampler_name = sampler_name
         self.image_transform = image_transform
 
@@ -115,7 +118,7 @@ class ImageDetectionDataset(Dataset):
 
     def resize_image(self, image):
         if self.sampler_name == 'fixed':
-            w, h = self.image_w, self.image_h
+            w, h = self.fixed_w, self.fixed_h
         else:
             org_w, org_h = image.size
             w, h = get_target_size(aspect_ratio=org_w/float(org_h), short_dim=self.short_dim, long_dim=self.long_dim)
@@ -217,15 +220,16 @@ class ImageDetectionLoader(BaseTransformer):
                                    train_mode=True,
                                    short_dim=self.dataset_params.short_dim,
                                    long_dim=self.dataset_params.long_dim,
-                                   image_h=self.dataset_params.image_h,
-                                   image_w=self.dataset_params.image_w,
+                                   fixed_h=self.dataset_params.fixed_h,
+                                   fixed_w=self.dataset_params.fixed_w,
                                    sampler_name=self.dataset_params.sampler_name,
                                    image_transform=self.image_transform)
 
             datagen = DataLoader(dataset, **loader_params,
                                  sampler=self.sampler(images_data=images_data,
                                                       sample_size=self.dataset_params.sample_size,
-                                                      batch_size=loader_params.batch_size),
+                                                      batch_size=loader_params.batch_size,
+                                                      shuffle=True),
                                  collate_fn=dataset.collate_fn)
         else:
             dataset = self.dataset(images_data,
@@ -235,15 +239,16 @@ class ImageDetectionLoader(BaseTransformer):
                                    train_mode=False,
                                    short_dim=self.dataset_params.short_dim,
                                    long_dim=self.dataset_params.long_dim,
-                                   image_h=self.dataset_params.image_h,
-                                   image_w=self.dataset_params.image_w,
+                                   fixed_h=self.dataset_params.fixed_h,
+                                   fixed_w=self.dataset_params.fixed_w,
                                    sampler_name=self.dataset_params.sampler_name,
                                    image_transform=self.image_transform)
 
             if annotations is not None:
                 datagen = DataLoader(dataset, **loader_params,
                                      sampler=self.sampler(images_data=images_data,
-                                                          batch_size=loader_params.batch_size),
+                                                          batch_size=loader_params.batch_size,
+                                                          shuffle=False),
                                      collate_fn=dataset.collate_fn)
             else:
                 datagen = DataLoader(dataset, **loader_params)
