@@ -175,7 +175,7 @@ def visualize(pipeline_name,
     else:
         SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
         *_, images_data = _get_input_data(classes_to_visualize=classes_to_visualize)
-        images_data = images_data.sample(n_files, random_state=SEED, replace=True)
+        images_data = images_data.sample(n_files, random_state=SEED, replace=len(images_data) < n_files)
 
     if single_image:
         raise NotImplemented
