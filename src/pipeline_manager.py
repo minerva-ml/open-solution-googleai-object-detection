@@ -13,7 +13,7 @@ from .pipelines import PIPELINES
 
 from .utils import NeptuneContext, competition_metric_evaluation, generate_data_frame_chunks, get_img_ids_from_folder, \
     init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids, map_per_class, \
-    generate_metadata
+    generate_metadata, prepare_metadata
 
 LOGGER = init_logger()
 CTX = NeptuneContext()
@@ -22,8 +22,21 @@ set_seed(SEED)
 
 
 class PipelineManager:
+    def __init__(self):
+        if not os.path.isfile(PARAMS.metadata_filepath):
+            self.prepare_metadata()
+
     def prepare_metadata(self):
-        prepare_metadata()
+        prepare_metadata(annotations_filepath=PARAMS.annotations_filepath,
+                         valid_ids_filepath=PARAMS.valid_ids_filepath,
+                         default_valid_ids=PARAMS.default_valid_ids,
+                         metadata_filepath=PARAMS.metadata_filepath,
+                         train_image_dir=PARAMS.train_imgs_dir,
+                         valid_image_dir=PARAMS.train_imgs_dir,
+                         test_image_dir=PARAMS.test_imgs_dir,
+                         id_column=ID_COLUMN,
+                         num_threads=PARAMS.num_threads,
+                         logger=LOGGER)
 
     def train(self, pipeline_name, dev_mode):
         train(pipeline_name, dev_mode)
@@ -42,34 +55,11 @@ class PipelineManager:
                   show_popups=show_popups)
 
 
-def prepare_metadata():
-    LOGGER.info('preparing metadata')
-    annotations = pd.read_csv(PARAMS.annotations_filepath)
-    valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
-
-    if PARAMS.default_valid_ids:
-        valid_ids_data = valid_ids_data
-        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
-        train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
-    else:
-        raise NotImplementedError
-
-    test_image_ids = get_img_ids_from_folder(PARAMS.test_imgs_dir)
-
-    metadata = generate_metadata(num_threads=PARAMS.num_threads,
-                                 train_image_ids=train_img_ids, train_image_dir=PARAMS.train_imgs_dir,
-                                 valid_image_ids=valid_img_ids, valid_image_dir=PARAMS.train_imgs_dir,
-                                 test_image_ids=test_image_ids, test_image_dir=PARAMS.test_imgs_dir)
-
-    metadata.to_csv(PARAMS.metadata_filepath)
-
-
 def train(pipeline_name, dev_mode):
     LOGGER.info('training')
     if bool(PARAMS.clean_experiment_directory_before_training) and os.path.isdir(PARAMS.experiment_dir):
         shutil.rmtree(PARAMS.experiment_dir)
-    if not os.path.isfile(PARAMS.metadata_filepath):
-        prepare_metadata()
+    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
     annotations, annotations_human_labels, train_data, valid_data = _get_input_data(dev_mode)
 
@@ -90,8 +80,7 @@ def train(pipeline_name, dev_mode):
 
 def evaluate(pipeline_name, dev_mode, chunk_size):
     LOGGER.info('evaluating')
-    if not os.path.isfile(PARAMS.metadata_filepath):
-        prepare_metadata()
+    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
     annotations, annotations_human_labels, _, valid_data = _get_input_data(dev_mode)
 
@@ -141,8 +130,7 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     LOGGER.info('predicting')
-    if not os.path.isfile(PARAMS.metadata_filepath):
-        prepare_metadata()
+    SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.test_imgs_dir
 
     metadata = pd.read_csv(PARAMS.metadata_filepath)
     meta_test = metadata[metadata['is_test'] == 1]
@@ -166,15 +154,13 @@ def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
 
 def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show_popups=False):
     if image_dir:
-        img_ids = get_img_ids_from_folder(SOLUTION_CONFIG['loader']['dataset_params']['images_dir'], n_ids=n_files)
+        SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = image_dir
+        img_ids = get_img_ids_from_folder(image_dir, n_ids=n_files)
         metadata = generate_metadata(valid_image_ids=img_ids, valid_image_dir=image_dir)
-        _, _, _, images_data = _get_input_data(metadata=metadata)
-
+        *_, images_data = _get_input_data(metadata=metadata, reduce=False)
     else:
-        if not os.path.isfile(PARAMS.metadata_filepath):
-            prepare_metadata()
         SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
-        _, _, _, images_data = _get_input_data()
+        *_, images_data = _get_input_data()
         images_data = images_data.sample(n_files, random_state=SEED)
 
     if single_image:
@@ -189,7 +175,7 @@ def visualize(pipeline_name, image_dir=None, single_image=None, n_files=16, show
                          }
             }
 
-    images_with_drawn_boxes = pipeline.fit_transform(data)
+    images_with_drawn_boxes = pipeline.transform(data)
     for img in images_with_drawn_boxes:
         basewidth = 500
         wpercent = (basewidth / float(img.size[0]))
@@ -252,13 +238,13 @@ def _generate_prediction_in_chunks(images_data, pipeline, chunk_size):
     return predictions
 
 
-def _get_input_data(dev_mode=False, metadata=None):
+def _get_input_data(dev_mode=False, metadata=None, reduce=True):
     annotations = pd.read_csv(PARAMS.annotations_filepath)
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
     if metadata is None:
         metadata = pd.read_csv(PARAMS.metadata_filepath)
 
-    if N_SUB_CLASSES > 0:
+    if N_SUB_CLASSES > 0 and reduce:
         LOGGER.info("Training on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
         annotations = reduce_number_of_classes(annotations,
                                                DESIRED_CLASS_SUBSET,

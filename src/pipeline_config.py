@@ -39,7 +39,8 @@ SOLUTION_CONFIG = AttrDict({
 
     'label_encoder': {'colname': LABEL_COLUMN
                       },
-    'loader': {'dataset_params': {'short_dim': params.short_dim,
+    'loader': {'dataset_params': {'images_dir': None,
+                                  'short_dim': params.short_dim,
                                   'long_dim': params.long_dim,
                                   'fixed_h': params.fixed_h,
                                   'fixed_w': params.fixed_w,

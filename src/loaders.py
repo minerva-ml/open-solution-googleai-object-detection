@@ -55,10 +55,11 @@ class AspectRatioSampler(Sampler):
 
 
 class ImageDetectionDataset(Dataset):
-    def __init__(self, images_data, annotations, annotations_human_labels, target_encoder, train_mode,
+    def __init__(self, images_data, images_dir, annotations, annotations_human_labels, target_encoder, train_mode,
                  short_dim, long_dim, fixed_h, fixed_w, sampler_name, image_transform):
         super().__init__()
         self.images_data = images_data
+        self.images_dir = images_dir
         self.annotations = annotations
         self.annotations_human_labels = annotations_human_labels
         self.target_encoder = target_encoder
@@ -87,7 +88,8 @@ class ImageDetectionDataset(Dataset):
             return self.image_transform(Xi)
 
     def load_from_disk(self, index):
-        img_path = self.images_data.iloc[index]['image_path']
+        imgId = self.images_data.iloc[index]['ImageID']
+        img_path = os.path.join(self.images_dir, imgId + '.jpg')
         return self.load_image(img_path)
 
     def load_image(self, img_filepath, grayscale=False):
@@ -125,7 +127,7 @@ class ImageDetectionDataset(Dataset):
         resize = transforms.Resize((h, w))
         return resize(image)
 
-    def alling_images(self, images):
+    def align_images(self, images):
         max_h, max_w = 0, 0
         min_h, min_w = 1e10, 1e10
         for image in images:
@@ -153,7 +155,7 @@ class ImageDetectionDataset(Dataset):
         boxes = [x[1][0] for x in batch]
         labels = [x[1][1] for x in batch]
 
-        imgs = self.alling_images(imgs)
+        imgs = self.align_images(imgs)
         imgs = [self.image_transform(img) for img in imgs]
 
         inputs = torch.stack(imgs)
@@ -214,6 +216,7 @@ class ImageDetectionLoader(BaseTransformer):
     def get_datagen(self, images_data, annotations, annotations_human_labels, train_mode, loader_params):
         if train_mode:
             dataset = self.dataset(images_data,
+                                   images_dir=self.dataset_params.images_dir,
                                    annotations=annotations,
                                    annotations_human_labels=annotations_human_labels,
                                    target_encoder=self.target_encoder,
@@ -233,6 +236,7 @@ class ImageDetectionLoader(BaseTransformer):
                                  collate_fn=dataset.collate_fn)
         else:
             dataset = self.dataset(images_data,
+                                   images_dir=self.dataset_params.images_dir,
                                    annotations=annotations,
                                    annotations_human_labels=annotations_human_labels,
                                    target_encoder=self.target_encoder,

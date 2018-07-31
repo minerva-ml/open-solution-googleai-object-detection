@@ -11,7 +11,6 @@ from collections import Iterable, defaultdict
 from itertools import chain
 from itertools import cycle
 import multiprocessing as mp
-from functools import partial
 
 import matplotlib as mpl
 if os.environ.get('DISPLAY', '') == '':
@@ -539,10 +538,11 @@ def visualize_bboxes(image, detections_df, threshold=0.1, return_format='PIL'):
         return detection_figure
 
 
-def _get_image_aspect_ratio(image_path):
+def _get_image_parameters(image_path):
     im = Image.open(image_path)
     w, h = im.size
-    return w/h
+    aspect_ratio = w/float(h)
+    return w, h, aspect_ratio
 
 
 def generate_metadata(num_threads=10,
@@ -553,22 +553,26 @@ def generate_metadata(num_threads=10,
     def _generate_metadata(imageIds, image_dir, is_train, is_valid, is_test):
 
         df_dict = defaultdict(lambda: [])
+        images_paths = []
         for imgId in tqdm(imageIds):
             df_dict['ImageID'].append(imgId)
             image_path = os.path.join(image_dir, imgId + '.jpg')
-            df_dict['image_path'].append(image_path)
+            images_paths.append(image_path)
             df_dict['is_train'].append(is_train)
             df_dict['is_valid'].append(is_valid)
             df_dict['is_test'].append(is_test)
 
         process_nr = min(num_threads, len(imageIds))
         with mp.pool.ThreadPool(process_nr) as executor:
-            df_dict['aspect_ratio'] = list(tqdm(executor.imap(_get_image_aspect_ratio, df_dict['image_path']),
-                                                total=len(imageIds)))
+            images_params = np.array(list(tqdm(executor.imap(_get_image_parameters, images_paths),
+                                      total=len(imageIds))))
+        df_dict['image_w'] = images_params[:, 0].tolist()
+        df_dict['image_h'] = images_params[:, 1].tolist()
+        df_dict['aspect_ratio'] = images_params[:, 2].tolist()
 
         return pd.DataFrame.from_dict(df_dict)
 
-    columns = ['ImageID', 'image_path', 'aspect_ratio', 'is_train', 'is_valid', 'is_test']
+    columns = ['ImageID', 'aspect_ratio', 'is_train', 'is_valid', 'is_test', 'image_h', 'image_w']
     metadata = pd.DataFrame(columns=columns)
 
     if train_image_ids is not None:
@@ -595,3 +599,27 @@ def get_target_size(aspect_ratio, short_dim, long_dim):
     target_h, target_w = int(target_h // 4 * 4), int(target_w // 4 * 4)
 
     return target_w, target_h
+
+
+def prepare_metadata(annotations_filepath, valid_ids_filepath, default_valid_ids, metadata_filepath,
+                     train_image_dir, valid_image_dir, test_image_dir,
+                     id_column, num_threads, logger):
+    logger.info('preparing metadata')
+    annotations = pd.read_csv(annotations_filepath)
+    valid_ids_data = pd.read_csv(valid_ids_filepath)
+
+    if default_valid_ids:
+        valid_ids_data = valid_ids_data
+        valid_img_ids = valid_ids_data[id_column].tolist()
+        train_img_ids = list(set(annotations[id_column].values) - set(valid_img_ids))
+    else:
+        raise NotImplementedError
+
+    test_image_ids = get_img_ids_from_folder(test_image_dir)
+
+    metadata = generate_metadata(num_threads=num_threads,
+                                 train_image_ids=train_img_ids, train_image_dir=train_image_dir,
+                                 valid_image_ids=valid_img_ids, valid_image_dir=valid_image_dir,
+                                 test_image_ids=test_image_ids, test_image_dir=test_image_dir)
+
+    metadata.to_csv(metadata_filepath)
