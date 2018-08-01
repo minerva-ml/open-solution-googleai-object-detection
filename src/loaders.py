@@ -1,5 +1,4 @@
 import os
-import random
 import torch
 import numpy as np
 from attrdict import AttrDict
@@ -13,45 +12,105 @@ from steppy.base import BaseTransformer
 from .retinanet import DataEncoder
 from .pipeline_config import MEAN, STD, SEED
 from .utils import get_target_size
+from .logging import LOGGER
 
 
-class FixedSizeSampler(Sampler):
-    def __init__(self, images_data, *,  sample_size=None, shuffle=True, **kwargs):
-        self.images_data = images_data.sample(frac=1, random_state=SEED) if shuffle else images_data
+class BaseSampler(Sampler):
+    def __init__(self, images_data, *args, sample_size=None, shuffle=True,
+                 even_class_sampling=False, annotations=None, seed=None, **kwargs):
+        self.images_data = self._prepare_data(images_data)
         self.sample_size = len(self.images_data) if sample_size is None else min(sample_size, len(self.images_data))
-
-    def __iter__(self):
-        indices = random.sample(range(len(self.images_data)), self.sample_size)
-        return iter(indices)
-
-    def __len__(self):
-        return self.sample_size
-
-
-class AspectRatioSampler(Sampler):
-    def __init__(self, images_data, *, batch_size=8, sample_size=None, shuffle=True, **kwargs):
-        self.images_data = images_data
-        self.batch_size = batch_size
-        self.sample_size = len(self.images_data) if sample_size is None else min(sample_size, len(self.images_data))
-        self.num_batches =  self.sample_size // self.batch_size
-        self.sample_size = self.num_batches * self.batch_size
-        self.indices = self.images_data.sort_values('aspect_ratio').index.tolist()
         self.shuffle = shuffle
+        self.even_class_sampling = even_class_sampling
+        self.seed = seed
+        self.annotations = annotations
+        assert self.even_class_sampling is False or self.annotations is not None,\
+            'Annotations are required for class sampling'
+
+        if self.even_class_sampling:
+            self.class_labels = self.annotations['LabelName'].unique()
+            self.num_classes = len(self.class_labels)
+            division = self.sample_size / float(self.num_classes)
+            self.samples_per_class = [round(division * (i + 1)) - round(division * i) for i in range(self.num_classes)]
+
+            self.class_indices = {}
+            for class_label in self.class_labels:
+                imgIds = self.annotations[self.annotations['LabelName'] == class_label]['ImageID'].unique()
+                indices = self.images_data[self.images_data['ImageID'].isin(imgIds)].index.tolist()
+                self.class_indices[class_label] = indices
 
     def __iter__(self):
-        subset = sorted(random.sample(range(len(self.indices)), self.sample_size))
-
-        indices = np.array([self.indices[i] for i in subset])
-        if self.shuffle:
-            indices = indices.reshape(self.num_batches, self.batch_size)
-            np.random.seed()
-            np.random.shuffle(indices)
-            indices = indices.flatten()
-
-        return iter(indices)
+        return iter(self._get_indices(self._get_sample()))
 
     def __len__(self):
         return self.sample_size
+
+    def _get_sample(self):
+        np.random.seed(self.seed)
+
+        if self.even_class_sampling:
+            sample = []
+            for class_label, sample_size in zip(self.class_labels, self.samples_per_class):
+                indices = self.class_indices[class_label]
+                if len(indices) == 0:
+                    LOGGER.info('No instances from class {}'.format(class_label))
+                    continue
+                if len(indices) < sample_size:
+                    LOGGER.info('Not enough {} class instances to get {} samples, got {} instead'\
+                          .format(class_label, sample_size, len(indices)))
+                sample.append(np.random.choice(indices, min(sample_size, len(indices)), replace=False))
+
+            sample = np.concatenate(sample)
+            np.random.shuffle(sample)
+            return sample
+        else:
+            return np.random.choice(len(self.images_data), self.sample_size, replace=False)
+
+    def _prepare_data(self, data):
+        raise NotImplementedError
+
+    def _get_indices(self, sample):
+        raise NotImplementedError
+
+
+class FixedSizeSampler(BaseSampler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _prepare_data(self, data):
+        data = data.sample(frac=1, random_state=SEED).reset_index(drop=True) if self.shuffle\
+            else data.reset_index(drop=True)
+        return data
+
+    def _get_indices(self, sample):
+        return sample if self.shuffle else np.sort(sample)
+
+
+class AspectRatioSampler(BaseSampler):
+    def __init__(self, *args, batch_size=8, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.batch_size = batch_size
+
+    def _prepare_data(self, data):
+        data = data.sort_values('aspect_ratio').reset_index(drop=True)
+        return data
+
+    def _get_indices(self, sample):
+        indices = np.sort(sample)
+        if self.shuffle:
+            indices = self._shuffle_batches(indices)
+        return indices
+
+    def _shuffle_batches(self, indices):
+        num_batches = len(indices) // self.batch_size
+        split_point = num_batches * self.batch_size
+        head, tail = indices[:split_point], indices[split_point:]
+        head = head.reshape(num_batches, self.batch_size)
+        np.random.seed(self.seed)
+        np.random.shuffle(head)
+        head = head.flatten()
+        indices = np.concatenate((head, tail))
+        return indices
 
 
 class ImageDetectionDataset(Dataset):
@@ -230,6 +289,8 @@ class ImageDetectionLoader(BaseTransformer):
 
             datagen = DataLoader(dataset, **loader_params,
                                  sampler=self.sampler(images_data=images_data,
+                                                      annotations=annotations,
+                                                      even_class_sampling=self.dataset_params.even_class_sampling,
                                                       sample_size=self.dataset_params.sample_size,
                                                       batch_size=loader_params.batch_size,
                                                       shuffle=True),
@@ -251,8 +312,12 @@ class ImageDetectionLoader(BaseTransformer):
             if annotations is not None:
                 datagen = DataLoader(dataset, **loader_params,
                                      sampler=self.sampler(images_data=images_data,
+                                                          annotations=annotations,
+                                                          even_class_sampling=True,
+                                                          sample_size=self.dataset_params.valid_sample_size,
                                                           batch_size=loader_params.batch_size,
-                                                          shuffle=False),
+                                                          shuffle=False,
+                                                          seed=SEED),
                                      collate_fn=dataset.collate_fn)
             else:
                 datagen = DataLoader(dataset, **loader_params)
