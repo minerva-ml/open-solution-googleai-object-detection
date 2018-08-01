@@ -14,8 +14,8 @@ from .pipelines import PIPELINES
 from .utils import NeptuneContext, competition_metric_evaluation, generate_data_frame_chunks, get_img_ids_from_folder, \
     init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids, map_per_class, \
     generate_metadata, prepare_metadata
+from .logging import LOGGER
 
-LOGGER = init_logger()
 CTX = NeptuneContext()
 PARAMS = CTX.params
 set_seed(SEED)
