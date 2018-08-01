@@ -12,15 +12,17 @@ from steppy.base import BaseTransformer
 from .retinanet import DataEncoder
 from .pipeline_config import MEAN, STD, SEED
 from .utils import get_target_size
+from .logging import LOGGER
 
 
 class BaseSampler(Sampler):
     def __init__(self, images_data, *args, sample_size=None, shuffle=True,
-                 even_class_sampling=False, annotations=None, **kwargs):
+                 even_class_sampling=False, annotations=None, seed=None, **kwargs):
         self.images_data = self._prepare_data(images_data)
         self.sample_size = len(self.images_data) if sample_size is None else min(sample_size, len(self.images_data))
         self.shuffle = shuffle
         self.even_class_sampling = even_class_sampling
+        self.seed = seed
         self.annotations = annotations
         assert self.even_class_sampling is False or self.annotations is not None,\
             'Annotations are required for class sampling'
@@ -36,8 +38,6 @@ class BaseSampler(Sampler):
                 imgIds = self.annotations[self.annotations['LabelName'] == class_label]['ImageID'].unique()
                 indices = self.images_data[self.images_data['ImageID'].isin(imgIds)].index.tolist()
                 self.class_indices[class_label] = indices
-            for key, value in self.class_indices.items():
-                print("For class {} there are {} images".format(key, len(value)))
 
     def __iter__(self):
         return iter(self._get_indices(self._get_sample()))
@@ -46,23 +46,25 @@ class BaseSampler(Sampler):
         return self.sample_size
 
     def _get_sample(self):
-        if not self.even_class_sampling:
+        np.random.seed(self.seed)
+
+        if self.even_class_sampling:
+            sample = []
+            for class_label, sample_size in zip(self.class_labels, self.samples_per_class):
+                indices = self.class_indices[class_label]
+                if len(indices) == 0:
+                    LOGGER.info('No instances from class {}'.format(class_label))
+                    continue
+                if len(indices) < sample_size:
+                    LOGGER.info('Not enough {} class instances to get {} samples, got {} instead'\
+                          .format(class_label, sample_size, len(indices)))
+                sample.append(np.random.choice(indices, min(sample_size, len(indices)), replace=False))
+
+            sample = np.concatenate(sample)
+            np.random.shuffle(sample)
+            return sample
+        else:
             return np.random.choice(len(self.images_data), self.sample_size, replace=False)
-
-        sample = []
-        for class_label, sample_size in zip(self.class_labels, self.samples_per_class):
-            indices = self.class_indices[class_label]
-            if len(indices) == 0:
-                print('No instances from class {}'.format(class_label))
-                continue
-            if len(indices) < sample_size:
-                print('Not enough {} class instances to get {} samples, got {} instead'\
-                      .format(class_label, sample_size, len(indices)))
-            sample.append(np.random.choice(indices, min(sample_size, len(indices)), replace=False))
-
-        sample = np.concatenate(sample)
-        np.random.shuffle(sample)
-        return sample
 
     def _prepare_data(self, data):
         raise NotImplementedError
@@ -104,7 +106,7 @@ class AspectRatioSampler(BaseSampler):
         split_point = num_batches * self.batch_size
         head, tail = indices[:split_point], indices[split_point:]
         head = head.reshape(num_batches, self.batch_size)
-        np.random.seed()
+        np.random.seed(self.seed)
         np.random.shuffle(head)
         head = head.flatten()
         indices = np.concatenate((head, tail))
@@ -311,9 +313,11 @@ class ImageDetectionLoader(BaseTransformer):
                 datagen = DataLoader(dataset, **loader_params,
                                      sampler=self.sampler(images_data=images_data,
                                                           annotations=annotations,
-                                                          even_class_sampling=False,
+                                                          even_class_sampling=True,
+                                                          sample_size=self.dataset_params.valid_sample_size,
                                                           batch_size=loader_params.batch_size,
-                                                          shuffle=False),
+                                                          shuffle=False,
+                                                          seed=SEED),
                                      collate_fn=dataset.collate_fn)
             else:
                 datagen = DataLoader(dataset, **loader_params)
