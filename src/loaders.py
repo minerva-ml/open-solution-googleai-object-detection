@@ -18,12 +18,12 @@ from .logging import LOGGER
 class BaseSampler(Sampler):
     def __init__(self, images_data, *args, sample_size=None, shuffle=True,
                  even_class_sampling=False, annotations=None, seed=None, **kwargs):
-        self.images_data = self._prepare_data(images_data)
-        self.sample_size = len(self.images_data) if sample_size is None else min(sample_size, len(self.images_data))
         self.shuffle = shuffle
         self.even_class_sampling = even_class_sampling
         self.seed = seed
         self.annotations = annotations
+        self.images_data = self._prepare_data(images_data)
+        self.sample_size = len(self.images_data) if sample_size is None else min(sample_size, len(self.images_data))
         assert self.even_class_sampling is False or self.annotations is not None,\
             'Annotations are required for class sampling'
 
