@@ -171,7 +171,7 @@ class ImageDetectionDataset(Dataset):
         img_aug = Image.fromarray(img_aug)
 
         boxes_augmented = torch.from_numpy(np.array([[b.x1, b.y1, b.x2, b.y2] for b in bbox_aug.bounding_boxes],
-                                                    dtype=float))
+                                                    dtype=float)).float()
 
         return img_aug, boxes_augmented
 

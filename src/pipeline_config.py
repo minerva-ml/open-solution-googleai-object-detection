@@ -33,6 +33,9 @@ augmenter = [
 ]
 
 
+
+
+
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
                  'num_workers': params.num_workers,
