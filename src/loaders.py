@@ -133,7 +133,6 @@ class ImageDetectionDataset(Dataset):
         self.sampler_name = sampler_name
         self.image_transform = image_transform
         self.augmenter = augmenter
-        print(self.augmenter)
 
     def __len__(self):
         return len(self.images_data)
