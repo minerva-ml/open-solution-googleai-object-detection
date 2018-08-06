@@ -56,7 +56,7 @@ parameters:
   long_dim: 600
   image_channels: 3
   pad_method: 'resize'
-  desired_class_subset: '[]'
+  desired_class_subset: "['Poster', 'Cat', 'Train', 'Dog', 'Bus','Truck', 'Picture frame', 'Airplane', 'Sculpture', 'Motorcycle']"
 
 # Retina parameters (multi-output)
   encoder_depth: 50
