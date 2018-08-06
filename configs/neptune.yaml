@@ -1,0 +1,81 @@
+project: YOUR_PROJECT_NAME
+
+name: google AI object detection
+tags: [solution-1]
+
+metric:
+  channel: 'MAP'
+  goal: maximize
+
+#Comment out if not in Cloud Environment
+#pip-requirements-file: requirements.txt
+
+exclude:
+  - .git
+  - .idea
+  - .ipynb_checkpoints
+  - output
+  - imgs
+  - neptune.log
+  - offline_job.log
+  - notebooks
+  - src/object_detection
+
+parameters:
+# Data Paths
+  train_imgs_dir: ''
+  test_imgs_dir: ''
+  annotations_filepath: ''
+  annotations_human_labels_filepath: ''
+  bbox_hierarchy_filepath: ''
+  valid_ids_filepath: ''
+  sample_submission: ''
+  experiment_dir:  ''
+  class_mappings_filepath: ''
+
+# Execution
+  clean_experiment_directory_before_training: 1
+  num_workers: 4
+  num_threads: 4
+  load_in_memory: 0
+  pin_memory: 1
+  default_valid_ids: 1
+  loader_mode: resize
+  stream_mode: 0
+  validate_with_map: 1
+  small_annotations_size: 20
+  kaggle_message: 'solution-1'
+
+# General parameters
+  image_h: 512
+  image_w: 512
+  image_channels: 3
+  pad_method: 'resize'
+
+# Retina parameters (multi-output)
+  encoder_depth: 50
+  num_classes: 500
+  pretrained_encoder: 1
+  pi: 0.01
+  aspect_ratios: '[1/2., 1/1., 2/1.]'
+  scale_ratios: '[1., pow(2,1/3.), pow(2,2/3.)]'
+
+# Training schedule
+  epochs_nr: 100
+  batch_size_train: 8
+  batch_size_inference: 8
+  lr: 0.0005
+  momentum: 0.9
+  gamma: 1.0
+  patience: 30
+  lr_factor: 0.3
+  lr_patience: 30
+  training_sample_size: 50000
+  validation_sample_size: 10000
+
+# Regularization
+  use_batch_norm: 1
+  l2_reg_conv: 0.0001
+  l2_reg_dense: 0.0
+  dropout_conv: 0.1
+  dropout_dense: 0.0
