@@ -363,6 +363,8 @@ def submission_formatting(submission):
 
 def calculate_map(metrics_filepath, list_of_desired_classes=None, mappings_file=None):
     metrics, codes2names, names2codes = _load_dependecies(metrics_filepath, list_of_desired_classes, mappings_file)
+    if not all([cls.startswith('/') for cls in list_of_desired_classes]):
+        list_of_desired_classes = [names2codes.get(cls_name, 'notfound') for cls_name in list_of_desired_classes]
 
     label_scores = []
     for label_score in metrics:
@@ -380,6 +382,8 @@ def calculate_map(metrics_filepath, list_of_desired_classes=None, mappings_file=
 
 def map_per_class(metrics_filepath, list_of_desired_classes=None, mappings_file=None):
     metrics, codes2names, names2codes = _load_dependecies(metrics_filepath, list_of_desired_classes, mappings_file)
+    if not all([cls.startswith('/') for cls in list_of_desired_classes]):
+        list_of_desired_classes = [names2codes.get(cls_name, 'notfound') for cls_name in list_of_desired_classes]
 
     label_scores = []
     for label_score in metrics:
