@@ -1,8 +1,8 @@
 import os
 
 from attrdict import AttrDict
-
-from .utils import NeptuneContext, parameter_eval
+import imgaug.augmenters as iaa
+from .utils import NeptuneContext, parameter_eval, get_class_mappings
 
 neptune_ctx = NeptuneContext()
 params = neptune_ctx.params
@@ -13,16 +13,33 @@ LABEL_COLUMN = 'LabelName'
 SEED = 1234
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
-DESIRED_CLASS_SUBSET = ["Person", "Car", "Dress", "Footwear"]
+
+DESIRED_CLASS_SUBSET = parameter_eval(params.desired_class_subset)
+N_SUB_CLASSES = len(DESIRED_CLASS_SUBSET)
 
 ASPECT_RATIOS = parameter_eval(params.aspect_ratios)
 SCALE_RATIOS = parameter_eval(params.scale_ratios)
 
+CODES2NAMES, NAMES2CODES = get_class_mappings(mappings_file=params.class_mappings_filepath)
+
+augmenter = [
+    iaa.Fliplr(p=0.3),
+    iaa.Multiply((1.2, 1.5)),
+    iaa.AdditiveGaussianNoise(),
+    iaa.Affine(
+        rotate=(-5, 5),
+        scale=(0.8, 1)
+    )
+]
+
+
+
+
+
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
                  'num_workers': params.num_workers,
-                 'num_classes': 2,
-                 'img_H-W': (params.image_h, params.image_w),
+                 'num_classes': N_SUB_CLASSES if N_SUB_CLASSES else params.num_classes,
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
                  'loader_mode': params.loader_mode,
@@ -35,16 +52,23 @@ SOLUTION_CONFIG = AttrDict({
 
     'label_encoder': {'colname': LABEL_COLUMN
                       },
-    'loader': {'dataset_params': {'h': params.image_h,
-                                  'w': params.image_w,
+    'loader': {'dataset_params': {'images_dir': None,
+                                  'short_dim': params.short_dim,
+                                  'long_dim': params.long_dim,
+                                  'fixed_h': params.fixed_h,
+                                  'fixed_w': params.fixed_w,
+                                  'sampler_name': params.sampler_name,
                                   'pad_method': params.pad_method,
-                                  'images_dir': None,
                                   'sample_size': params.training_sample_size,
+                                  'valid_sample_size': params.validation_sample_size,
+                                  'even_class_sampling': params.even_class_sampling,
+                                  'augmenter': augmenter,
                                   'data_encoder': {'aspect_ratios': ASPECT_RATIOS,
                                                    'scale_ratios': SCALE_RATIOS,
                                                    'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS)}
                                   },
                'loader_params': {'training': {'batch_size': params.batch_size_train,
+                                              'shuffle': False,
                                               'num_workers': params.num_workers,
                                               'pin_memory': params.pin_memory
                                               },
@@ -58,7 +82,9 @@ SOLUTION_CONFIG = AttrDict({
 
     'retinanet': {
         'architecture_config': {'model_params': {'encoder_depth': params.encoder_depth,
-                                                 'num_classes': params.num_classes,
+                                                 'num_classes': N_SUB_CLASSES if N_SUB_CLASSES else params.num_classes,
+                                                 # we change the model output size if subclasses used
+                                                 # fallback to config file
                                                  'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS),
                                                  'pretrained_encoder': params.pretrained_encoder
                                                  },
@@ -106,14 +132,17 @@ SOLUTION_CONFIG = AttrDict({
     },
     'postprocessing': {
         'data_decoder': {
-            'input_size': (params.image_h, params.image_w),
+            'short_dim': params.short_dim,
+            'long_dim': params.long_dim,
+            'fixed_h': params.fixed_h,
+            'fixed_w': params.fixed_w,
+            'sampler_name': params.sampler_name,
             'num_threads': params.num_threads,
             'aspect_ratios': ASPECT_RATIOS,
             'scale_ratios': SCALE_RATIOS,
-            'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS)
-        },
-        'prediction_formatter': {
-            'image_size': (params.image_h, params.image_w)
+            'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS),
+            'cls_thrs': params.classification_threshold,
+            'nms_thrs': params.nms_threshold
         }
     },
 })

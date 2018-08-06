@@ -1,4 +1,5 @@
 import glob
+import io
 import logging
 import math
 import os
@@ -6,9 +7,17 @@ import pathlib
 import random
 import subprocess
 import sys
-from collections import Iterable
+from collections import Iterable, defaultdict
 from itertools import chain
+from itertools import cycle
+import multiprocessing as mp
 
+import matplotlib as mpl
+if os.environ.get('DISPLAY', '') == '':
+    print('no display found. Using non-interactive Agg backend')
+    mpl.use('Agg')
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
@@ -202,6 +211,14 @@ def generate_list_chunks(meta, chunk_size):
         yield meta_chunk
 
 
+def generate_data_frame_chunks(meta, chunk_size):
+    n_rows = meta.shape[0]
+    chunk_nr = int(math.ceil(n_rows / chunk_size))
+    for i in tqdm(range(chunk_nr)):
+        meta_chunk = meta.iloc[i * chunk_size:(i + 1) * chunk_size]
+        yield meta_chunk
+
+
 def denormalize_img(image, mean, std):
     return image * np.array(std).reshape(3, 1, 1) + np.array(mean).reshape(3, 1, 1)
 
@@ -345,18 +362,9 @@ def submission_formatting(submission):
 
 
 def calculate_map(metrics_filepath, list_of_desired_classes=None, mappings_file=None):
-    with open(metrics_filepath) as f:
-        metrics = f.read().splitlines()
-
-    if list_of_desired_classes:
-        codes2names, names2codes = get_class_mappings(mappings_file)
-        if not all([cls.startswith('/') for cls in list_of_desired_classes]):
-            list_of_desired_classes = [names2codes.get(cls_name, 'notfound')
-                                       for cls_name in list_of_desired_classes]
-
-        assert all(
-            [cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are " \
-                                                                                "invalid "
+    metrics, codes2names, names2codes = _load_dependecies(metrics_filepath, list_of_desired_classes, mappings_file)
+    if not all([cls.startswith('/') for cls in list_of_desired_classes]):
+        list_of_desired_classes = [names2codes.get(cls_name, 'notfound') for cls_name in list_of_desired_classes]
 
     label_scores = []
     for label_score in metrics:
@@ -370,6 +378,40 @@ def calculate_map(metrics_filepath, list_of_desired_classes=None, mappings_file=
         else:
             label_scores.append(score)
     return np.mean(label_scores)
+
+
+def map_per_class(metrics_filepath, list_of_desired_classes=None, mappings_file=None):
+    metrics, codes2names, names2codes = _load_dependecies(metrics_filepath, list_of_desired_classes, mappings_file)
+    if not all([cls.startswith('/') for cls in list_of_desired_classes]):
+        list_of_desired_classes = [names2codes.get(cls_name, 'notfound') for cls_name in list_of_desired_classes]
+
+    label_scores = []
+    for label_score in metrics:
+        score = float(label_score.split(',')[1])
+        score = 0.0 if np.isnan(score) else score
+        label = label_score.split(',')[0].split('AP@0.5IOU/')[-1]
+        if list_of_desired_classes:
+            if label in list_of_desired_classes:
+                label_scores.append((codes2names[label], score))
+        else:
+            label_scores.append((codes2names[label], score))
+    return label_scores
+
+
+def _load_dependecies(metrics_filepath, list_of_desired_classes=None, mappings_file=None):
+    with open(metrics_filepath) as f:
+        metrics = f.read().splitlines()
+
+    codes2names, names2codes = get_class_mappings(mappings_file)
+    if list_of_desired_classes:
+        if not all([cls.startswith('/') for cls in list_of_desired_classes]):
+            list_of_desired_classes = [names2codes.get(cls_name, 'notfound')
+                                       for cls_name in list_of_desired_classes]
+
+        assert all(
+            [cls_code in codes2names for cls_code in list_of_desired_classes]), "One or More Class names/codes are " \
+                                                                                "invalid "
+    return metrics, codes2names, names2codes
 
 
 def get_class_mappings(mappings_file):
@@ -410,3 +452,178 @@ def add_missing_image_ids(submission, sample_submission):
     sample_submission['ImageId'] = sample_submission['ImageId'].astype(str)
     fixed_submission = pd.merge(sample_submission[['ImageId']], submission, on=['ImageId'], how='outer')
     return fixed_submission
+
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
+def figure2img(f):
+    """
+    Converts a Matplotlib plot into a PNG image.
+    Parameters
+    ----------
+    f: Matplotlib plot
+        Plot to convert
+    Returns
+    -------
+    Image
+        PNG Image
+    """
+
+    buf = io.BytesIO()
+    f.savefig(buf, bbox_inches='tight', pad_inches=0)
+    buf.seek(0)
+    im = Image.open(buf)
+    return im
+
+
+def visualize_bboxes(image, detections_df, threshold=0.1, return_format='PIL'):
+    """
+    Parameters
+    ----------
+    image PIL Image or np.array(im_cols, rows, 3)
+    detections_df: pd.DataFrame containing data about bboxes using the following format:
+    columns=['class_id','class_name','score','x1','y1','x2','y2'] each row is one bbox.
+    threshold: detection trheshold
+    return_format PIL or NP
+    Returns
+    -------
+    """
+
+    if not all(x in detections_df.columns for x in ['class_id', 'class_name', 'score', 'x1', 'y1', 'x2', 'y2']):
+        raise ValueError('The dataframe format is not correct')
+
+    if not isinstance(image, np.ndarray):
+        # othweriwse assume PIL
+        image = np.array(image)
+
+    cycol = cycle('bgrcmk')
+    detection_figure = plt.figure(frameon=False)
+    dpi = mpl.rcParams['figure.dpi']
+
+    imrows, imcols = image.shape[0], image.shape[1]
+    detection_figure.set_size_inches((imrows / dpi) * 1.5, (imcols / dpi) * 1.5)
+    current_axis = plt.Axes(detection_figure, [0., 0., 1., 1.])
+    current_axis.set_axis_off()
+    detection_figure.add_axes(current_axis)
+    current_axis.imshow(image)
+
+    # filter by score
+    detections_df = detections_df[detections_df.score > threshold]
+
+    for i, row in detections_df.iterrows():
+        label = '{0} {1:.2f}'.format(row.class_name, row.score)
+        color = next(cycol)
+        line = 4
+        current_axis.add_patch(
+            plt.Rectangle((row.x1, row.y1),
+                          row.x2 - row.x1,
+                          row.y2 - row.y1,
+                          color=color,
+                          fill=False, linewidth=line))
+
+        current_axis.text(row.x1, row.y1, label, size='x-large', color='white',
+                          bbox={'facecolor': color, 'alpha': 1.0})
+
+    current_axis.get_xaxis().set_visible(False)
+    current_axis.get_yaxis().set_visible(False)
+    plt.close()
+
+    if return_format == 'PIL':
+        return figure2img(detection_figure)
+
+    elif return_format == 'NP':
+        return np.array(figure2img(detection_figure))[:, :, :3]
+
+    else:
+        return detection_figure
+
+
+def _get_image_parameters(image_path):
+    im = Image.open(image_path)
+    w, h = im.size
+    aspect_ratio = w/float(h)
+    return w, h, aspect_ratio
+
+
+def generate_metadata(num_threads=10,
+                      train_image_ids=None, train_image_dir=None,
+                      valid_image_ids=None, valid_image_dir=None,
+                      test_image_ids=None, test_image_dir=None):
+
+    def _generate_metadata(imageIds, image_dir, is_train, is_valid, is_test):
+
+        df_dict = defaultdict(lambda: [])
+        images_paths = []
+        for imgId in tqdm(imageIds):
+            df_dict['ImageID'].append(imgId)
+            image_path = os.path.join(image_dir, imgId + '.jpg')
+            images_paths.append(image_path)
+            df_dict['is_train'].append(is_train)
+            df_dict['is_valid'].append(is_valid)
+            df_dict['is_test'].append(is_test)
+
+        process_nr = min(num_threads, len(imageIds))
+        with mp.pool.ThreadPool(process_nr) as executor:
+            images_params = np.array(list(tqdm(executor.imap(_get_image_parameters, images_paths),
+                                      total=len(imageIds))))
+        df_dict['image_w'] = images_params[:, 0].tolist()
+        df_dict['image_h'] = images_params[:, 1].tolist()
+        df_dict['aspect_ratio'] = images_params[:, 2].tolist()
+
+        return pd.DataFrame.from_dict(df_dict)
+
+    columns = ['ImageID', 'aspect_ratio', 'is_train', 'is_valid', 'is_test', 'image_h', 'image_w']
+    metadata = pd.DataFrame(columns=columns)
+
+    if train_image_ids is not None:
+        metadata = pd.concat([metadata, _generate_metadata(train_image_ids, train_image_dir, 1, 0, 0)])
+    if valid_image_ids is not None:
+        metadata = pd.concat([metadata, _generate_metadata(valid_image_ids, valid_image_dir, 0, 1, 0)])
+    if test_image_ids is not None:
+        metadata = pd.concat([metadata, _generate_metadata(test_image_ids, test_image_dir, 0, 0, 1)])
+
+    return metadata.sort_values('aspect_ratio').reset_index(drop=True)
+
+
+def get_target_size(aspect_ratio, short_dim, long_dim):
+    w, h = aspect_ratio, 1
+    x, y = min(h, w), max(h, w)     # x < y
+    if y*short_dim > x*long_dim:
+        target_x = x * long_dim // y
+        target_y = long_dim
+    else:
+        target_x = short_dim
+        target_y = y * short_dim // x
+
+    target_h, target_w = (target_y, target_x) if h > w else (target_x, target_y)
+    target_h, target_w = int(target_h // 4 * 4), int(target_w // 4 * 4)
+
+    return target_w, target_h
+
+
+def prepare_metadata(annotations_filepath, valid_ids_filepath, default_valid_ids, metadata_filepath,
+                     train_image_dir, valid_image_dir, test_image_dir,
+                     id_column, num_threads, logger):
+    logger.info('preparing metadata')
+    annotations = pd.read_csv(annotations_filepath)
+    valid_ids_data = pd.read_csv(valid_ids_filepath)
+
+    if default_valid_ids:
+        valid_ids_data = valid_ids_data
+        valid_img_ids = valid_ids_data[id_column].tolist()
+        train_img_ids = list(set(annotations[id_column].values) - set(valid_img_ids))
+    else:
+        raise NotImplementedError
+
+    test_image_ids = get_img_ids_from_folder(test_image_dir)
+
+    metadata = generate_metadata(num_threads=num_threads,
+                                 train_image_ids=train_img_ids, train_image_dir=train_image_dir,
+                                 valid_image_ids=valid_img_ids, valid_image_dir=valid_image_dir,
+                                 test_image_ids=test_image_ids, test_image_dir=test_image_dir)
+
+    metadata.to_csv(metadata_filepath)
