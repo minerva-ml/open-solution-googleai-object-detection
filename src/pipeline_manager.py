@@ -272,7 +272,7 @@ def _get_input_data(dev_mode=False, metadata=None, reduce=True, classes_to_visua
                                                             PARAMS.class_mappings_filepath)
 
         img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
-        metadata = metadata[metadata['ImageID'].isin(img_ids_in_reduced_annotations)]
+        metadata = metadata.set_index('ImageID').loc[img_ids_in_reduced_annotations].reset_index()
 
     meta_train = metadata[metadata['is_train'] == 1]
     meta_valid = metadata[metadata['is_valid'] == 1]
