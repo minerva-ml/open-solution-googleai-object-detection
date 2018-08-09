@@ -1,6 +1,6 @@
-project: YOUR_PROJECT_NAME
+project: USERNAME/googleai-object-detection
 
-name: google AI object detection
+name: Google AI object detection
 tags: [solution-1]
 
 metric:
