@@ -34,16 +34,16 @@ pip3 install -r requirements.txt
 ```
 
 2. Register to the [neptune.ml](https://neptune.ml/login) _(if you wish to use it)_
-3. Run experiment:
+3. Train RetinaNet:
 
 :trident:
 ```bash
-neptune run will appear here soon :)
+neptune run main.py train --pipeline_name retinanet
 ```
 
 :snake:
 ```bash
-python command will appear here soon :)
+python main.py train --pipeline_name retinanet
 ```
 
 ## Get involved
