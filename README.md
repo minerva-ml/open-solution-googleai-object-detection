@@ -16,14 +16,23 @@ We are building entirely open solution to this competition. Specifically:
 |:---|:---|
 |[![unet-training-monitor](https://gist.githubusercontent.com/kamil-kaczmarek/b3b939797fb39752c45fdadfedba3ed9/raw/19272701575bca235473adaabb7b7c54b2416a54/gai-1.png)](https://app.neptune.ml/-/dashboard/experiment/f945da64-6dd3-459b-94c5-58bc6a83f590)|[![predicted-bounding-boxes](https://gist.githubusercontent.com/kamil-kaczmarek/b3b939797fb39752c45fdadfedba3ed9/raw/19272701575bca235473adaabb7b7c54b2416a54/gai-2.png)](https://app.neptune.ml/-/dashboard/experiment/c779468e-d3f7-44b8-a3a4-43a012315708)|
 
+## Disclaimer
+In this open source solution you will find references to the [neptune.ml](https://neptune.ml). It is free platform for community Users, which we use daily to keep track of our experiments. Please note that using neptune.ml is not necessary to proceed with this solution. You may run it as plain Python script :snake:.
+
+# How to start?
+## Learn about our solutions
+1. Check [Kaggle forum](https://www.kaggle.com/c/google-ai-open-images-object-detection-track/discussion/62895) and participate in the discussions.
+1. Check our [Wiki pages :dolphin:](https://github.com/neptune-ml/open-solution-googleai-object-detection/wiki), where we describe our work. Below are link to specific solutions:
+
+| link to code| link to description |
+|:---:|:---:|
+|[solution-1](https://github.com/neptune-ml/open-solution-googleai-object-detection/tree/solution-1)|[palm-tree :palm_tree:](https://github.com/neptune-ml/open-solution-googleai-object-detection/wiki/RetinaNet-with-sampler)|
+
 ## Dataset for this competition
 This competition is special, because it used [Open Images Dataset V4](https://storage.googleapis.com/openimages/web/index.html), which is quite large: `>1.8M` images and `>0.5TB` :astonished: To make it more approachable, we are hosting entire dataset in the neptune's public directory :sunglasses:. **You can use this dataset in [neptune.ml](https://neptune.ml) with no additional setup :+1:.**
 
-## Learn more about our solutions
-[Kaggle discussion](https://www.kaggle.com/c/google-ai-open-images-object-detection-track/discussion) is our primary way of communication, however, we are also documenting our work on the [Wiki pages :blue_book:](https://github.com/neptune-ml/open-solution-googleai-object-detection/wiki). Click on the dolphin to get started [:dolphin:](https://github.com/neptune-ml/open-solution-googleai-object-detection/wiki).
-
-## Disclaimer
-In this open source solution you will find references to the [neptune.ml](https://neptune.ml). It is free platform for community Users, which we use daily to keep track of our experiments. Please note that using neptune.ml is not necessary to proceed with this solution. You may run it as plain Python script :wink:.
+## Start experimenting with ready-to-use code
+You can jump start your participation in the competition by using our starter pack. Installation instruction below will guide you through the setup.
 
 ## Installation
 ### Fast Track
@@ -55,6 +64,6 @@ You are welcome to contribute your code and ideas to this open solution. To get 
 
 ## User support
 There are several ways to seek help:
-1. [Kaggle discussion](https://www.kaggle.com/c/google-ai-open-images-object-detection-track/discussion) is our primary way of communication.
+1. [Kaggle discussion](https://www.kaggle.com/c/google-ai-open-images-object-detection-track/discussion/62895) is our primary way of communication.
 1. Read project's [Wiki](https://github.com/neptune-ml/open-solution-googleai-object-detection/wiki), where we publish descriptions about the code, pipelines and supporting tools such as [neptune.ml](https://neptune.ml).
 1. Submit an [issue]((https://github.com/neptune-ml/open-solution-googleai-object-detection/issues)) directly in this repo.
