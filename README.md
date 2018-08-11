@@ -52,7 +52,7 @@ neptune run main.py train --pipeline_name retinanet
 
 :snake:
 ```bash
-python main.py train --pipeline_name retinanet
+python main.py -- train --pipeline_name retinanet
 ```
 
 ## Get involved
