@@ -36,13 +36,13 @@ You can jump start your participation in the competition by using our starter pa
 
 ## Installation
 ### Fast Track
-1. Clone repository, install `tensorflow 1.6`, `PyTorch 0.3.1` and then remaining requirements (check _requirements.txt_)
+1. Clone repository, install requirements (check _requirements.txt)
 
 ```bash
 pip3 install -r requirements.txt
 ```
 
-2. Register to the [neptune.ml](https://neptune.ml/login) _(if you wish to use it)_
+2. Register to the [neptune.ml](https://neptune.ml/login) _(if you wish to use it)_ and create your Google-AI-Object-Detection-Challenge.
 3. Train RetinaNet:
 
 :hamster:
