@@ -36,14 +36,50 @@ You can jump start your participation in the competition by using our starter pa
 
 ## Installation
 ### Fast Track
-1. Clone repository, install `tensorflow 1.6`, `PyTorch 0.3.1` and then remaining requirements (check _requirements.txt_)
+1. Clone repository, install requirements (check _requirements.txt)
 
 ```bash
 pip3 install -r requirements.txt
 ```
 
-2. Register to the [neptune.ml](https://neptune.ml/login) _(if you wish to use it)_
+2. Register to the [neptune.ml](https://neptune.ml/login) _(if you wish to use it)_ and create your Google-AI-Object-Detection-Challenge.
 3. Train RetinaNet:
+
+:hamster:
+```bash
+neptune send --worker m-4p100 \
+--environment pytorch-0.3.1-gpu-py3 \
+--config configs/neptune.yaml \
+main.py train --pipeline_name retinanet
+```
+
+:trident:
+```bash
+neptune run main.py train --pipeline_name retinanet
+```
+
+:snake:
+```bash
+python main.py -- train --pipeline_name retinanet
+```
+
+4. Evaluate/Predict RetinaNet:
+
+**Note** in case of memory trouble go to `neptune.yaml` and change `batch_size_inference: 1`
+
+:hamster:
+With cloud environment you need to change the experiment directory to the one that you have just trained. Let's assume that your experiment id was `GAI-14`. You should go to `neptune.yaml` and change:
+
+```yaml
+  experiment_dir:  ../GAI-14/output/experiment
+```
+
+```bash
+neptune send --worker m-4p100 \
+--environment pytorch-0.3.1-gpu-py3 \
+--config configs/neptune.yaml \
+main.py evaluate_predict --pipeline_name retinanet
+```
 
 :trident:
 ```bash
