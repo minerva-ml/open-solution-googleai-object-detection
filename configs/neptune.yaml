@@ -1,4 +1,5 @@
-project: USERNAME/googleai-object-detection
+project: neptune-ml/Google-Ai-Object-Detection-Challenge
+#project: USERNAME/googleai-object-detection
 
 name: Google AI object detection
 tags: [solution-1]
@@ -8,7 +9,7 @@ metric:
   goal: maximize
 
 #Comment out if not in Cloud Environment
-#pip-requirements-file: requirements.txt
+pip-requirements-file: requirements.txt # Comment out if Local execution
 
 exclude:
   - .git
@@ -23,15 +24,15 @@ exclude:
 
 parameters:
 # Data Paths
-  train_imgs_dir: ''
-  test_imgs_dir: ''
-  annotations_filepath: ''
-  annotations_human_labels_filepath: ''
-  bbox_hierarchy_filepath: ''
-  valid_ids_filepath: ''
-  sample_submission: ''
-  experiment_dir:  ''
-  class_mappings_filepath: ''
+  train_imgs_dir: /public/datasets/open-images-dataset-v4/bounding-boxes/train
+  test_imgs_dir: /public/datasets/open-images-dataset-v4/bounding-boxes/test_challenge_2018
+  annotations_filepath: /public/challenges/google-ai-open-images-object-detection-track/annotations/challenge-2018-train-annotations-bbox.csv
+  annotations_human_labels_filepath: /public/challenges/google-ai-open-images-object-detection-track/annotations/challenge-2018-train-annotations-human-imagelabels.csv
+  bbox_hierarchy_filepath: /public/challenges/google-ai-open-images-object-detection-track/metadata/bbox_labels_500_hierarchy.json
+  class_mappings_filepath: /public/challenges/google-ai-open-images-object-detection-track/metadata/challenge-2018-class-descriptions-500.csv
+  valid_ids_filepath: /public/challenges/google-ai-open-images-object-detection-track/metadata/challenge-2018-image-ids-valset-od.csv
+  sample_submission: /public/challenges/google-ai-open-images-object-detection-track/sample_submission.csv
+  experiment_dir:  /output/experiment
 
   # Execution
   clean_experiment_directory_before_training: 1
