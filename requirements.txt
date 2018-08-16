@@ -1,6 +1,6 @@
-neptune_cli
-steppy
-steppy-toolkit
+neptune_cli==2.8.9
+steppy==0.1.6
+steppy-toolkit==0.1.8
 bokeh
 flask
 numpy
@@ -17,7 +17,6 @@ pycocotools==2.0.0
 PyYAML==3.13
 scikit_learn==0.19.2
 six==1.10.0
-tensorflow==1.6.0
 torch==0.3.1
 torchvision==0.2.1
 tqdm==4.11.2
