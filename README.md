@@ -78,17 +78,17 @@ With cloud environment you need to change the experiment directory to the one th
 neptune send --worker m-4p100 \
 --environment pytorch-0.3.1-gpu-py3 \
 --config configs/neptune.yaml \
-main.py evaluate_predict --pipeline_name retinanet
+main.py evaluate_predict --pipeline_name retinanet --chunk_size 100
 ```
 
 :trident:
 ```bash
-neptune run main.py train --pipeline_name retinanet
+neptune run main.py train --pipeline_name retinanet --chunk_size 100
 ```
 
 :snake:
 ```bash
-python main.py -- train --pipeline_name retinanet
+python main.py -- train --pipeline_name retinanet --chunk_size 100
 ```
 
 ## Get involved
