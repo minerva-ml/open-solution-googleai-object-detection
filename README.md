@@ -45,7 +45,7 @@ pip3 install -r requirements.txt
 2. Register to the [neptune.ml](https://neptune.ml/login) _(if you wish to use it)_
 3. Train RetinaNet:
 
-:globe:
+:baloon:
 ```bash
 neptune send --worker m-4p100 \
 --environment pytorch-0.3.1-gpu-py3 \
@@ -66,7 +66,7 @@ python main.py -- train --pipeline_name retinanet
 4. Evaluate/Predict RetinaNet:
 **Note** in case of memory trouble go to `neptune.yaml` and change `batch_size_inference: 1`
 
-:globe:
+:baloon:
 With cloud environment you need to change the experiment directory to the one that you have just trained. Let's assume that your experiment id was `GAI-14`. You should go to `neptune.yaml` and change:
 
 ```yaml
