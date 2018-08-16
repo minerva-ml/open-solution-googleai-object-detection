@@ -64,6 +64,7 @@ python main.py -- train --pipeline_name retinanet
 ```
 
 4. Evaluate/Predict RetinaNet:
+
 **Note** in case of memory trouble go to `neptune.yaml` and change `batch_size_inference: 1`
 
 :hamster:
