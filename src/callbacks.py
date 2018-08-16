@@ -9,10 +9,9 @@ from deepsense import neptune
 from torch.autograd import Variable
 from tempfile import TemporaryDirectory
 from toolkit.pytorch_transformers.callbacks import NeptuneMonitor, ValidationMonitor
-from steppy.base import IdentityOperation
+from steppy.base import Step, IdentityOperation
 
 from . import postprocessing as post
-from .steppy_dev.base import Step
 from .utils import get_logger, softmax, make_apply_transformer
 
 logger = get_logger()
