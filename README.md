@@ -71,13 +71,15 @@ python main.py -- train --pipeline_name retinanet
 With cloud environment you need to change the experiment directory to the one that you have just trained. Let's assume that your experiment id was `GAI-14`. You should go to `neptune.yaml` and change:
 
 ```yaml
-  experiment_dir:  ../GAI-14/output/experiment
+  experiment_dir:  /output/experiment
+  clone_experiment_dir_from:  /input/GAI-14/output/experiment
 ```
 
 ```bash
 neptune send --worker m-4p100 \
 --environment pytorch-0.3.1-gpu-py3 \
 --config configs/neptune.yaml \
+--input /GAI-14 \
 main.py evaluate_predict --pipeline_name retinanet --chunk_size 100
 ```
 
