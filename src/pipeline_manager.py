@@ -1,18 +1,18 @@
 import os
 import shutil
 
+from deepsense import neptune
 import pandas as pd
-import numpy as np
 import math
 
 from .pipeline_config import DESIRED_CLASS_SUBSET, ID_COLUMN, SEED, SOLUTION_CONFIG
 from .pipelines import PIPELINES
-from .utils import NeptuneContext, competition_metric_evaluation, generate_list_chunks, get_img_ids_from_folder, \
-    init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids
+from .utils import competition_metric_evaluation, generate_list_chunks, get_img_ids_from_folder, \
+    init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids, read_params
 
 LOGGER = init_logger()
-CTX = NeptuneContext()
-PARAMS = CTX.params
+CTX = neptune.Context()
+PARAMS = read_params(CTX)
 set_seed(SEED)
 
 
@@ -56,10 +56,11 @@ def train(pipeline_name, dev_mode):
     if PARAMS.default_valid_ids:
         if valid_ids_data.shape[0] < PARAMS.validation_sample_size:
             LOGGER.warning("Validation sample-size is smaller then desired validation sample size ... clipping")
-            PARAMS.validation_sample_size = np.clip(PARAMS.validation_sample_size,
-                                                    a_max=valid_ids_data.shape[0])
+            validation_sample_size = valid_ids_data.shape[0]
+        else:
+            validation_sample_size = PARAMS.validation_sample_size
 
-        valid_ids_data = valid_ids_data.sample(PARAMS.validation_sample_size, random_state=SEED)
+        valid_ids_data = valid_ids_data.sample(validation_sample_size, random_state=SEED)
         valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
         train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
     else:

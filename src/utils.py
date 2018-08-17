@@ -15,52 +15,23 @@ import torch
 import yaml
 from PIL import Image
 from attrdict import AttrDict
-from deepsense import neptune
 from pycocotools import mask as cocomask
 from steppy.base import BaseTransformer
 from tqdm import tqdm
 
-neptune_config_path = str(pathlib.Path(__file__).resolve().parents[1] / 'configs' / 'neptune_config_local.yaml')
+NEPTUNE_CONFIG_PATH = str(pathlib.Path(__file__).resolve().parents[1] / 'configs' / 'neptune_config_local.yaml')
 
 
-# Alex Martelli's 'Borg'
-# http://python-3-patterns-idioms-test.readthedocs.io/en/latest/Singleton.html
-class _Borg:
-    _shared_state = {}
-
-    def __init__(self):
-        self.__dict__ = self._shared_state
-
-
-class NeptuneContext(_Borg):
-    def __init__(self, fallback_file=neptune_config_path):
-        _Borg.__init__(self)
-
-        self.ctx = neptune.Context()
-        self.fallback_file = fallback_file
-        self.params = self._read_params()
-        self.numeric_channel = neptune.ChannelType.NUMERIC
-        self.image_channel = neptune.ChannelType.IMAGE
-        self.text_channel = neptune.ChannelType.TEXT
-
-    def channel_send(self, *args, **kwargs):
-        self.ctx.channel_send(*args, **kwargs)
-
-    def _read_params(self):
-        if self.ctx.params.__class__.__name__ == 'OfflineContextParams':
-            params = self._read_yaml().parameters
-        else:
-            params = self.ctx.params
-        return params
-
-    def _read_yaml(self):
-        with open(self.fallback_file) as f:
-            config = yaml.load(f)
-        return AttrDict(config)
+def read_params(ctx):
+    if ctx.params.__class__.__name__ == 'OfflineContextParams':
+        params = read_yaml().parameters
+    else:
+        params = ctx.params
+    return params
 
 
-def read_yaml(filepath):
-    with open(filepath) as f:
+def read_yaml(fallback_file=NEPTUNE_CONFIG_PATH):
+    with open(fallback_file) as f:
         config = yaml.load(f)
     return AttrDict(config)
 
@@ -114,15 +85,6 @@ def rle_from_binary(prediction):
 
 def bounding_box_from_rle(rle):
     return list(cocomask.toBbox(rle))
-
-
-def read_params(ctx, fallback_file):
-    if ctx.params.__class__.__name__ == 'OfflineContextParams':
-        neptune_config = read_yaml(fallback_file)
-        params = neptune_config.parameters
-    else:
-        params = ctx.params
-    return params
 
 
 def softmax(X, theta=1.0, axis=None):
