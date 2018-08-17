@@ -64,16 +64,16 @@ parameters:
 
 # Training schedule
   epochs_nr: 1
-  batch_size_train: 2
-  batch_size_inference: 2
+  batch_size_train: 8
+  batch_size_inference: 8
   lr: 0.0005
   momentum: 0.9
   gamma: 1.0
   patience: 30
   lr_factor: 0.3
   lr_patience: 30
-  training_sample_size: 50
-  validation_sample_size: 10
+  training_sample_size: 10000
+  validation_sample_size: 1000
 
 # Regularization
   use_batch_norm: 1
