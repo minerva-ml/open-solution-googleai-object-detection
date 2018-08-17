@@ -32,6 +32,9 @@ class PipelineManager:
 
 def train(pipeline_name, dev_mode):
     LOGGER.info('training')
+    if PARAMS.clone_experiment_dir_from != '':
+        shutil.copytree(PARAMS.clone_experiment_dir_from, PARAMS.experiment_dir)
+
     if bool(PARAMS.clean_experiment_directory_before_training) and os.path.isdir(PARAMS.experiment_dir):
         shutil.rmtree(PARAMS.experiment_dir)
 
@@ -89,6 +92,9 @@ def train(pipeline_name, dev_mode):
 
 def evaluate(pipeline_name, dev_mode, chunk_size):
     LOGGER.info('evaluating')
+
+    if PARAMS.clone_experiment_dir_from != '':
+        shutil.copytree(PARAMS.clone_experiment_dir_from, PARAMS.experiment_dir)
 
     annotations = pd.read_csv(PARAMS.annotations_filepath)
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
@@ -150,6 +156,9 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     LOGGER.info('predicting')
+
+    if PARAMS.clone_experiment_dir_from != '':
+        shutil.copytree(PARAMS.clone_experiment_dir_from, PARAMS.experiment_dir)
 
     n_ids = 100 if dev_mode else None
     test_img_ids = get_img_ids_from_folder(PARAMS.test_imgs_dir, n_ids=n_ids)

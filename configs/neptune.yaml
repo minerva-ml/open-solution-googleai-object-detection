@@ -9,7 +9,7 @@ metric:
   goal: maximize
 
 #Comment out if not in Cloud Environment
-pip-requirements-file: requirements.txt # Comment out if Local execution
+#pip-requirements-file: requirements.txt # Comment out if Local execution
 
 exclude:
   - .git
@@ -33,6 +33,7 @@ parameters:
   valid_ids_filepath: /public/challenges/google-ai-open-images-object-detection-track/metadata/challenge-2018-image-ids-valset-od.csv
   sample_submission: /public/challenges/google-ai-open-images-object-detection-track/sample_submission.csv
   experiment_dir:  /output/experiment
+  clone_experiment_dir_from: '' #When running eval specify this as for example /GAI-14/output/experiment
 
   # Execution
   clean_experiment_directory_before_training: 1
@@ -62,7 +63,7 @@ parameters:
   scale_ratios: '[1., pow(2,1/3.), pow(2,2/3.)]'
 
 # Training schedule
-  epochs_nr: 10
+  epochs_nr: 1
   batch_size_train: 2
   batch_size_inference: 2
   lr: 0.0005
@@ -71,8 +72,8 @@ parameters:
   patience: 30
   lr_factor: 0.3
   lr_patience: 30
-  training_sample_size: 50000
-  validation_sample_size: 10000
+  training_sample_size: 50
+  validation_sample_size: 10
 
 # Regularization
   use_batch_norm: 1
