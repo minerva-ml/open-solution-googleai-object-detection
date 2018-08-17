@@ -1,19 +1,20 @@
 import os
 
 from attrdict import AttrDict
+from deepsense import neptune
 
-from .utils import NeptuneContext, parameter_eval
+from .utils import parameter_eval, read_params
 
-neptune_ctx = NeptuneContext()
-params = neptune_ctx.params
-ctx = neptune_ctx.ctx
+ctx = neptune.Context()
+params = read_params(ctx)
 
 ID_COLUMN = 'ImageID'
 LABEL_COLUMN = 'LabelName'
 SEED = 1234
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
-DESIRED_CLASS_SUBSET = ['Poster', 'Cat', 'Train', 'Dog', 'Bus','Truck', 'Picture frame', 'Airplane', 'Sculpture', 'Motorcycle']
+DESIRED_CLASS_SUBSET = ['Poster', 'Cat', 'Train', 'Dog', 'Bus', 'Truck', 'Picture frame', 'Airplane', 'Sculpture',
+                        'Motorcycle']
 
 ASPECT_RATIOS = parameter_eval(params.aspect_ratios)
 SCALE_RATIOS = parameter_eval(params.scale_ratios)
