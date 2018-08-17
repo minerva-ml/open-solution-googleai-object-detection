@@ -9,7 +9,7 @@ metric:
   goal: maximize
 
 #Comment out if not in Cloud Environment
-#pip-requirements-file: requirements.txt # Comment out if Local execution
+pip-requirements-file: requirements.txt # Comment out if Local execution
 
 exclude:
   - .git
@@ -33,7 +33,7 @@ parameters:
   valid_ids_filepath: /public/challenges/google-ai-open-images-object-detection-track/metadata/challenge-2018-image-ids-valset-od.csv
   sample_submission: /public/challenges/google-ai-open-images-object-detection-track/sample_submission.csv
   experiment_dir:  /output/experiment
-  clone_experiment_dir_from: '' #When running eval specify this as for example /GAI-14/output/experiment
+  clone_experiment_dir_from: '' #When running eval specify this as for example /input/GAI-14/output/experiment
 
   # Execution
   clean_experiment_directory_before_training: 1
