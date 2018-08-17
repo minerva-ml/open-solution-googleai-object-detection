@@ -42,7 +42,7 @@ You can jump start your participation in the competition by using our starter pa
 pip3 install -r requirements.txt
 ```
 
-2. Register to the [neptune.ml](https://neptune.ml/login) _(if you wish to use it)_ and create your Google-AI-Object-Detection-Challenge.
+2. Register to the [neptune.ml](https://neptune.ml/login) _(if you wish to use it)_ and create your project, for example Google-AI-Object-Detection-Challenge.
 3. Train RetinaNet:
 
 :hamster:
