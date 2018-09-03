@@ -32,6 +32,7 @@ parameters:
   experiment_dir:  ''
   class_mappings_filepath: ''
   metadata_filepath: ''
+  clone_experiment_dir_from: '' #When running eval specify this as for example /input/GAI-14/output/experiment
 
 # Execution
   clean_experiment_directory_before_training: 0

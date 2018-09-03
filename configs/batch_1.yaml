@@ -32,6 +32,7 @@ parameters:
   class_mappings_filepath: '/mnt/ml-team/minerva/open-solutions/googleai-object-detection/data/metadata/challenge-2018-class-descriptions-500.csv'
   metadata_filepath: '/mnt/ml-team/minerva/open-solutions/googleai-object-detection/files/metadata.csv'
   sample_submission: '/mnt/ml-team/minerva/open-solutions/googleai-object-detection/data/sample_submission.csv'
+  clone_experiment_dir_from: '' #When running eval specify this as for example /input/GAI-14/output/experiment
 
 # Execution
   clean_experiment_directory_before_training: 0

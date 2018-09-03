@@ -1,13 +1,8 @@
 import os
 
+import neptune
 from attrdict import AttrDict
-<<<<<<< HEAD
-from .utils import NeptuneContext, parameter_eval, get_class_mappings
-=======
-from deepsense import neptune
-
-from .utils import parameter_eval, read_params
->>>>>>> fb308cd9d8e1c19102ae03aa9312b2faae014a85
+from .utils import read_params, parameter_eval, get_class_mappings
 
 ctx = neptune.Context()
 params = read_params(ctx)
@@ -17,20 +12,14 @@ LABEL_COLUMN = 'LabelName'
 SEED = 1234
 MEAN = [0.485, 0.456, 0.406]
 STD = [0.229, 0.224, 0.225]
-<<<<<<< HEAD
 
 DESIRED_CLASS_SUBSET = parameter_eval(params.desired_class_subset)
 N_SUB_CLASSES = len(DESIRED_CLASS_SUBSET)
-=======
-DESIRED_CLASS_SUBSET = ['Poster', 'Cat', 'Train', 'Dog', 'Bus', 'Truck', 'Picture frame', 'Airplane', 'Sculpture',
-                        'Motorcycle']
->>>>>>> fb308cd9d8e1c19102ae03aa9312b2faae014a85
 
 ASPECT_RATIOS = parameter_eval(params.aspect_ratios)
 SCALE_RATIOS = parameter_eval(params.scale_ratios)
 
 CODES2NAMES, NAMES2CODES = get_class_mappings(mappings_file=params.class_mappings_filepath)
-
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
