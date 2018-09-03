@@ -3,7 +3,6 @@ import shutil
 
 from deepsense import neptune
 import pandas as pd
-import numpy as np
 import math
 import cv2
 from PIL import Image
@@ -11,6 +10,7 @@ from PIL import Image
 from .pipeline_config import DESIRED_CLASS_SUBSET, N_SUB_CLASSES, ID_COLUMN, LABEL_COLUMN, SEED, SOLUTION_CONFIG, \
     NAMES2CODES, CODES2NAMES
 from .pipelines import PIPELINES
+<<<<<<< HEAD
 
 from .utils import NeptuneContext, competition_metric_evaluation, generate_data_frame_chunks, get_img_ids_from_folder, \
     init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids, map_per_class, \
@@ -19,6 +19,14 @@ from .logging import LOGGER
 
 CTX = NeptuneContext()
 PARAMS = CTX.params
+=======
+from .utils import competition_metric_evaluation, generate_list_chunks, get_img_ids_from_folder, \
+    init_logger, reduce_number_of_classes, set_seed, submission_formatting, add_missing_image_ids, read_params
+
+LOGGER = init_logger()
+CTX = neptune.Context()
+PARAMS = read_params(CTX)
+>>>>>>> fb308cd9d8e1c19102ae03aa9312b2faae014a85
 set_seed(SEED)
 
 
@@ -60,8 +68,52 @@ class PipelineManager:
 
 def train(pipeline_name, dev_mode):
     LOGGER.info('training')
+    if PARAMS.clone_experiment_dir_from != '':
+        if os.path.exists(PARAMS.experiment_dir):
+            shutil.rmtree(PARAMS.experiment_dir)
+        shutil.copytree(PARAMS.clone_experiment_dir_from, PARAMS.experiment_dir)
+
     if bool(PARAMS.clean_experiment_directory_before_training) and os.path.isdir(PARAMS.experiment_dir):
         shutil.rmtree(PARAMS.experiment_dir)
+<<<<<<< HEAD
+=======
+
+    annotations = pd.read_csv(PARAMS.annotations_filepath)
+    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
+    valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
+
+    if DESIRED_CLASS_SUBSET:
+        LOGGER.info("Training on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
+        annotations = reduce_number_of_classes(annotations,
+                                               DESIRED_CLASS_SUBSET,
+                                               PARAMS.class_mappings_filepath)
+
+        annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
+                                                            DESIRED_CLASS_SUBSET,
+                                                            PARAMS.class_mappings_filepath)
+
+        img_ids_in_reduced_annotations = annotations[ID_COLUMN].unique()
+        valid_ids_data = valid_ids_data[valid_ids_data[ID_COLUMN].isin(img_ids_in_reduced_annotations)].reset_index(
+            drop=True)
+
+    if PARAMS.default_valid_ids:
+        if valid_ids_data.shape[0] < PARAMS.validation_sample_size:
+            LOGGER.warning("Validation sample-size is smaller then desired validation sample size ... clipping")
+            validation_sample_size = valid_ids_data.shape[0]
+        else:
+            validation_sample_size = PARAMS.validation_sample_size
+
+        valid_ids_data = valid_ids_data.sample(validation_sample_size, random_state=SEED)
+        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
+        train_img_ids = list(set(annotations[ID_COLUMN].values) - set(valid_img_ids))
+    else:
+        raise NotImplementedError
+
+    if dev_mode:
+        train_img_ids = train_img_ids[:100]
+        valid_img_ids = valid_img_ids[:20]
+
+>>>>>>> fb308cd9d8e1c19102ae03aa9312b2faae014a85
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
     annotations, annotations_human_labels, train_data, valid_data = _get_input_data(dev_mode=dev_mode, train_mode=True)
@@ -83,6 +135,37 @@ def train(pipeline_name, dev_mode):
 
 def evaluate(pipeline_name, dev_mode, chunk_size):
     LOGGER.info('evaluating')
+<<<<<<< HEAD
+=======
+
+    if PARAMS.clone_experiment_dir_from != '':
+        if os.path.exists(PARAMS.experiment_dir):
+            shutil.rmtree(PARAMS.experiment_dir)
+        shutil.copytree(PARAMS.clone_experiment_dir_from, PARAMS.experiment_dir)
+
+    annotations = pd.read_csv(PARAMS.annotations_filepath)
+    annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
+
+    if DESIRED_CLASS_SUBSET:
+        LOGGER.info("Evaluating on a reduced class subset: {}".format(DESIRED_CLASS_SUBSET))
+        annotations = reduce_number_of_classes(annotations,
+                                               DESIRED_CLASS_SUBSET,
+                                               PARAMS.class_mappings_filepath)
+
+        annotations_human_labels = reduce_number_of_classes(annotations_human_labels,
+                                                            DESIRED_CLASS_SUBSET,
+                                                            PARAMS.class_mappings_filepath)
+
+    if PARAMS.default_valid_ids:
+        valid_ids_data = pd.read_csv(PARAMS.valid_ids_filepath)
+        valid_img_ids = valid_ids_data[ID_COLUMN].tolist()
+    else:
+        raise NotImplementedError
+
+    if dev_mode:
+        valid_img_ids = valid_img_ids[:20]
+
+>>>>>>> fb308cd9d8e1c19102ae03aa9312b2faae014a85
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
     annotations, annotations_human_labels, _, valid_data = _get_input_data(dev_mode)
@@ -133,6 +216,18 @@ def evaluate(pipeline_name, dev_mode, chunk_size):
 
 def predict(pipeline_name, dev_mode, submit_predictions, chunk_size):
     LOGGER.info('predicting')
+<<<<<<< HEAD
+=======
+
+    if PARAMS.clone_experiment_dir_from != '':
+        if os.path.exists(PARAMS.experiment_dir):
+            shutil.rmtree(PARAMS.experiment_dir)
+        shutil.copytree(PARAMS.clone_experiment_dir_from, PARAMS.experiment_dir)
+
+    n_ids = 100 if dev_mode else None
+    test_img_ids = get_img_ids_from_folder(PARAMS.test_imgs_dir, n_ids=n_ids)
+
+>>>>>>> fb308cd9d8e1c19102ae03aa9312b2faae014a85
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.test_imgs_dir
 
     metadata = pd.read_csv(PARAMS.metadata_filepath)

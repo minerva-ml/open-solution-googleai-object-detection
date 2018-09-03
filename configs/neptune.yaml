@@ -1,6 +1,6 @@
-project: YOUR_PROJECT_NAME
+project: USERNAME/googleai-object-detection
 
-name: google AI object detection
+name: Google AI object detection
 tags: [solution-1]
 
 metric:
@@ -8,7 +8,7 @@ metric:
   goal: maximize
 
 #Comment out if not in Cloud Environment
-#pip-requirements-file: requirements.txt
+pip-requirements-file: requirements.txt # Comment out if Local execution
 
 exclude:
   - .git
@@ -23,18 +23,18 @@ exclude:
 
 parameters:
 # Data Paths
-  train_imgs_dir: ''
-  test_imgs_dir: ''
-  annotations_filepath: ''
-  annotations_human_labels_filepath: ''
-  bbox_hierarchy_filepath: ''
-  valid_ids_filepath: ''
-  sample_submission: ''
-  experiment_dir:  ''
-  class_mappings_filepath: ''
-  metadata_filepath: ''
+  train_imgs_dir: /public/datasets/open-images-dataset-v4/bounding-boxes/train
+  test_imgs_dir: /public/datasets/open-images-dataset-v4/bounding-boxes/test_challenge_2018
+  annotations_filepath: /public/challenges/google-ai-open-images-object-detection-track/annotations/challenge-2018-train-annotations-bbox.csv
+  annotations_human_labels_filepath: /public/challenges/google-ai-open-images-object-detection-track/annotations/challenge-2018-train-annotations-human-imagelabels.csv
+  bbox_hierarchy_filepath: /public/challenges/google-ai-open-images-object-detection-track/metadata/bbox_labels_500_hierarchy.json
+  class_mappings_filepath: /public/challenges/google-ai-open-images-object-detection-track/metadata/challenge-2018-class-descriptions-500.csv
+  valid_ids_filepath: /public/challenges/google-ai-open-images-object-detection-track/metadata/challenge-2018-image-ids-valset-od.csv
+  sample_submission: /public/challenges/google-ai-open-images-object-detection-track/sample_submission.csv
+  experiment_dir:  /output/experiment
+  clone_experiment_dir_from: '' #When running eval specify this as for example /input/GAI-14/output/experiment
 
-# Execution
+  # Execution
   clean_experiment_directory_before_training: 1
   num_workers: 4
   num_threads: 4
@@ -62,7 +62,7 @@ parameters:
 
 # Retina parameters (multi-output)
   encoder_depth: 50
-  num_classes: 500
+  num_classes: 10
   pretrained_encoder: 1
   pi: 0.01
   aspect_ratios: '[1/2., 1/1., 2/1.]'
@@ -70,16 +70,16 @@ parameters:
 
 # Training schedule
   epochs_nr: 100
-  batch_size_train: 1
-  batch_size_inference: 1
+  batch_size_train: 8
+  batch_size_inference: 8
   lr: 0.00001
   momentum: 0.9
   gamma: 1.0
   patience: 30
   lr_factor: 0.3
   lr_patience: 30
-  training_sample_size: 50000
-  validation_sample_size: 10000
+  training_sample_size: 10000
+  validation_sample_size: 1000
 
 # Regularization
   use_batch_norm: 1
