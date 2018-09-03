@@ -1,7 +1,7 @@
-project: YOUR_PROJECT_NAME
+project: neptune-ml/Google-AI-Object-Detection-Challenge
 
-name: google AI object detection
-tags: [solution-1]
+name: google-ai-object-detection
+tags: [solution-1, batch-5, retrain]
 
 metric:
   channel: 'MAP'
@@ -19,7 +19,6 @@ exclude:
   - neptune.log
   - offline_job.log
   - notebooks
-  - src/object_detection
 
 parameters:
 # Data Paths
@@ -35,9 +34,9 @@ parameters:
   metadata_filepath: ''
 
 # Execution
-  clean_experiment_directory_before_training: 1
+  clean_experiment_directory_before_training: 0
   num_workers: 4
-  num_threads: 4
+  num_threads: 100
   load_in_memory: 0
   pin_memory: 1
   default_valid_ids: 1
@@ -48,38 +47,104 @@ parameters:
   kaggle_message: 'solution-1'
 
 # General parameters
-  sampler_name: 'fixed'     # from {'fixed', 'aspect ratio'}
+  sampler_name: 'aspect ratio'     # from {'fixed', 'aspect ratio'}
   even_class_sampling: 1
   fixed_h: 512
   fixed_w: 512
-  short_dim: 400
-  long_dim: 600
+  short_dim: 640 #512
+  long_dim: 960 #896
   image_channels: 3
   pad_method: 'resize'
-  use_suppression: 1
-  max_annotation_per_class: 75000
-  desired_class_subset: "['Poster', 'Cat', 'Train', 'Dog', 'Bus','Truck', 'Picture frame', 'Airplane', 'Sculpture', 'Motorcycle']"
+  use_suppression: 0
+  max_annotation_per_class: 0
+  desired_class_subset: "['Helicopter',
+ 'Monkey',
+ 'Coin',
+ 'Chicken',
+ 'Salad',
+ 'Countertop',
+ 'Elephant',
+ 'Sheep',
+ 'Platter',
+ 'Ski',
+ 'Pillow',
+ 'Lamp',
+ 'Lifejacket',
+ 'Fountain',
+ 'Television',
+ 'Bread',
+ 'Porch',
+ 'Deer',
+ 'Swimming pool',
+ 'Apple',
+ 'Cookie',
+ 'Penguin',
+ 'Taxi',
+ 'Christmas tree',
+ 'Castle',
+ 'Drawer',
+ 'Cocktail',
+ 'Mushroom',
+ 'Bowl',
+ 'Swan',
+ 'Computer keyboard',
+ 'Canoe',
+ 'Muffin',
+ 'Curtain',
+ 'Maple',
+ 'Office building',
+ 'Football',
+ 'Bookcase',
+ 'Coffee table',
+ 'Coffee cup',
+ 'Box',
+ 'Plate',
+ 'Lantern',
+ 'Cake',
+ 'Candle',
+ 'Stairs',
+ 'Computer monitor',
+ 'Pumpkin',
+ 'Orange',
+ 'Tomato',
+ 'Mobile phone',
+ 'Camera',
+ 'Doll',
+ 'Lavender',
+ 'Sunflower',
+ 'Tent',
+ 'Paddle',
+ 'Traffic light',
+ 'Van',
+ 'Vehicle registration plate',
+ 'Strawberry',
+ 'Goose',
+ 'Cabinetry',
+ 'Laptop',
+ 'Beer',
+ 'Goggles',
+ 'Billboard']"
 
 # Retina parameters (multi-output)
   encoder_depth: 50
-  num_classes: 500
+  num_classes: 100
   pretrained_encoder: 1
   pi: 0.01
   aspect_ratios: '[1/2., 1/1., 2/1.]'
   scale_ratios: '[1., pow(2,1/3.), pow(2,2/3.)]'
 
 # Training schedule
-  epochs_nr: 100
-  batch_size_train: 1
+  epochs_nr: 1000
+  batch_size_train: 8
   batch_size_inference: 1
   lr: 0.00001
   momentum: 0.9
   gamma: 1.0
-  patience: 30
+  patience: 100
   lr_factor: 0.3
   lr_patience: 30
-  training_sample_size: 50000
-  validation_sample_size: 10000
+  training_sample_size: 10000
+  validation_sample_size: 2000
 
 # Regularization
   use_batch_norm: 1

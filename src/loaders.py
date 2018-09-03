@@ -14,7 +14,7 @@ from .retinanet import DataEncoder
 from .pipeline_config import MEAN, STD, SEED
 from .utils import get_target_size
 from .logging import LOGGER
-import imgaug.augmenters as iaa
+from .augmentation import aug_seq
 
 
 class BaseSampler(Sampler):
@@ -117,7 +117,8 @@ class AspectRatioSampler(BaseSampler):
 
 class ImageDetectionDataset(Dataset):
     def __init__(self, images_data, images_dir, annotations, annotations_human_labels, target_encoder, train_mode,
-                 short_dim, long_dim, fixed_h, fixed_w, sampler_name, image_transform, augmenter=None):
+                 short_dim, long_dim, fixed_h, fixed_w, sampler_name, image_transform, image_augment=None,
+                 use_suppression=False):
         super().__init__()
         self.images_data = images_data
         self.images_dir = images_dir
@@ -132,7 +133,8 @@ class ImageDetectionDataset(Dataset):
         self.fixed_w = fixed_w
         self.sampler_name = sampler_name
         self.image_transform = image_transform
-        self.augmenter = augmenter
+        self.image_augment = image_augment
+        self.use_suppression = use_suppression
 
     def __len__(self):
         return len(self.images_data)
@@ -146,8 +148,8 @@ class ImageDetectionDataset(Dataset):
             w, h = Xi.size
             yi = self.load_target(index, (h, w))
 
-            if self.augmenter:
-                image_augmented, boxes_augmented = self.augment(self.augmenter, Xi, yi[0])
+            if self.image_augment is not None:
+                image_augmented, boxes_augmented = self.augment(self.image_augment, Xi, yi[0])
                 Xi = image_augmented
                 yi = (boxes_augmented, yi[1])  # replace boxes with new boxes
 
@@ -156,24 +158,33 @@ class ImageDetectionDataset(Dataset):
             return self.image_transform(Xi)
 
     def augment(self, augmenter, image, boxes):
-        augmenter = augmenter.to_deterministic()
-        w, h = image.size
-        bbs_on_image = ia.BoundingBoxesOnImage(
-            [ia.BoundingBox(*b) for b in boxes], shape=(h, w)
-        )
+        try:
+            augmenter = augmenter.to_deterministic()
+            w, h = image.size
+            bbs_on_image = ia.BoundingBoxesOnImage(
+                [ia.BoundingBox(*b) for b in boxes], shape=(h, w)
+            )
 
-        bbs_on_image = bbs_on_image.cut_out_of_image()
-        bbs_on_image = bbs_on_image.remove_out_of_image()
+            bbs_on_image = bbs_on_image.cut_out_of_image()
+            bbs_on_image = bbs_on_image.remove_out_of_image()
 
-        bbox_aug = augmenter.augment_bounding_boxes([bbs_on_image])[0]
-        img_aug = augmenter.augment_image(np.array(image))
+            bbox_aug = augmenter.augment_bounding_boxes([bbs_on_image])[0]
+            img_aug = augmenter.augment_image(np.array(image))
 
-        img_aug = Image.fromarray(img_aug)
+            bbox_aug = bbox_aug.cut_out_of_image()
+            bbox_aug = bbox_aug.remove_out_of_image()
 
-        boxes_augmented = torch.from_numpy(np.array([[b.x1, b.y1, b.x2, b.y2] for b in bbox_aug.bounding_boxes],
-                                                    dtype=float)).float()
+            img_aug = Image.fromarray(img_aug)
+            boxes = np.array([[b.x1, b.y1, b.x2, b.y2] for b in bbox_aug.bounding_boxes])
 
-        return img_aug, boxes_augmented
+            if len(boxes)>0:
+                boxes_augmented = torch.from_numpy(boxes).float()
+            else:
+                boxes_augmented = torch.FloatTensor([])
+            return img_aug, boxes_augmented
+        except Exception:
+            return image, boxes
+
 
     def load_from_disk(self, index):
         imgId = self.images_data.iloc[index]['ImageID']
@@ -194,16 +205,22 @@ class ImageDetectionDataset(Dataset):
         return self.get_boxes_and_labels(boxes_rows, img_shape)
 
     def get_boxes_and_labels(self, boxes_rows, img_shape):
-        boxes, labels = [], []
+        boxes, labels, supress = [], [], []
         h, w = img_shape
         for _, box_row in boxes_rows.iterrows():
-            x_min = box_row['XMin'] * w
-            x_max = box_row['XMax'] * w
-            y_min = box_row['YMin'] * h
-            y_max = box_row['YMax'] * h
+            x_min = int(box_row['XMin'] * w)
+            x_max = int(box_row['XMax'] * w)
+            y_min = int(box_row['YMin'] * h)
+            y_max = int(box_row['YMax'] * h)
             label = box_row['LabelName']
-            boxes.append([x_min, y_min, x_max, y_max])
-            labels.append(label)
+
+            if 'Suppress' in box_row and self.use_suppression and box_row['Suppress']:
+                label = -2
+
+            if x_min < x_max and y_min < y_max:
+                boxes.append([x_min, y_min, x_max, y_max])
+                labels.append(label)
+
         return torch.FloatTensor(boxes), torch.FloatTensor(labels)
 
     def resize_image(self, image):
@@ -284,6 +301,7 @@ class ImageDetectionLoader(BaseTransformer):
             transforms.ToTensor(),
             transforms.Normalize(mean=MEAN, std=STD),
         ])
+        self.image_augment = aug_seq
 
     def transform(self, images_data, annotations=None, annotations_human_labels=None, valid_images_data=None):
         if self.train_mode and annotations is not None:
@@ -303,7 +321,13 @@ class ImageDetectionLoader(BaseTransformer):
 
     def get_datagen(self, images_data, annotations, annotations_human_labels, train_mode, loader_params):
         if train_mode:
-            dataset = self.dataset(images_data,
+            sampler = self.sampler(images_data=images_data,
+                                   annotations=annotations,
+                                   even_class_sampling=self.dataset_params.even_class_sampling,
+                                   sample_size=self.dataset_params.sample_size,
+                                   batch_size=loader_params.batch_size,
+                                   shuffle=True)
+            dataset = self.dataset(images_data=sampler.images_data,
                                    images_dir=self.dataset_params.images_dir,
                                    annotations=annotations,
                                    annotations_human_labels=annotations_human_labels,
@@ -315,21 +339,22 @@ class ImageDetectionLoader(BaseTransformer):
                                    fixed_w=self.dataset_params.fixed_w,
                                    sampler_name=self.dataset_params.sampler_name,
                                    image_transform=self.image_transform,
-                                   # For some reasons AttrDict magic makes something weird
-                                   # to the Augmenter object so we re-create it here
-                                   augmenter=iaa.Sequential(self.dataset_params.augmenter) if
-                                   self.dataset_params.augmenter else None)
+                                   image_augment=self.image_augment,
+                                   use_suppression=self.dataset_params.use_suppression
+                                   )
 
             datagen = DataLoader(dataset, **loader_params,
-                                 sampler=self.sampler(images_data=images_data,
-                                                      annotations=annotations,
-                                                      even_class_sampling=self.dataset_params.even_class_sampling,
-                                                      sample_size=self.dataset_params.sample_size,
-                                                      batch_size=loader_params.batch_size,
-                                                      shuffle=True),
+                                 sampler=sampler,
                                  collate_fn=dataset.collate_fn)
         else:
-            dataset = self.dataset(images_data,
+            sampler = self.sampler(images_data=images_data,
+                                   annotations=annotations,
+                                   even_class_sampling=True,
+                                   sample_size=self.dataset_params.valid_sample_size,
+                                   batch_size=loader_params.batch_size,
+                                   shuffle=False,
+                                   seed=SEED) if annotations is not None else None
+            dataset = self.dataset(images_data=images_data if sampler is None else sampler.images_data,
                                    images_dir=self.dataset_params.images_dir,
                                    annotations=annotations,
                                    annotations_human_labels=annotations_human_labels,
@@ -341,17 +366,11 @@ class ImageDetectionLoader(BaseTransformer):
                                    fixed_w=self.dataset_params.fixed_w,
                                    sampler_name=self.dataset_params.sampler_name,
                                    image_transform=self.image_transform,
-                                   augmenter=None)
+                                   image_augment=None)
 
             if annotations is not None:
                 datagen = DataLoader(dataset, **loader_params,
-                                     sampler=self.sampler(images_data=images_data,
-                                                          annotations=annotations,
-                                                          even_class_sampling=True,
-                                                          sample_size=self.dataset_params.valid_sample_size,
-                                                          batch_size=loader_params.batch_size,
-                                                          shuffle=False,
-                                                          seed=SEED),
+                                     sampler=sampler,
                                      collate_fn=dataset.collate_fn)
             else:
                 datagen = DataLoader(dataset, **loader_params)

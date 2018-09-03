@@ -8,7 +8,8 @@ import math
 import cv2
 from PIL import Image
 
-from .pipeline_config import DESIRED_CLASS_SUBSET, N_SUB_CLASSES, ID_COLUMN, LABEL_COLUMN, SEED, SOLUTION_CONFIG
+from .pipeline_config import DESIRED_CLASS_SUBSET, N_SUB_CLASSES, ID_COLUMN, LABEL_COLUMN, SEED, SOLUTION_CONFIG, \
+    NAMES2CODES, CODES2NAMES
 from .pipelines import PIPELINES
 
 from .utils import NeptuneContext, competition_metric_evaluation, generate_data_frame_chunks, get_img_ids_from_folder, \
@@ -63,7 +64,7 @@ def train(pipeline_name, dev_mode):
         shutil.rmtree(PARAMS.experiment_dir)
     SOLUTION_CONFIG['loader']['dataset_params']['images_dir'] = PARAMS.train_imgs_dir
 
-    annotations, annotations_human_labels, train_data, valid_data = _get_input_data(dev_mode)
+    annotations, annotations_human_labels, train_data, valid_data = _get_input_data(dev_mode=dev_mode, train_mode=True)
 
     data = {'input': {'images_data': train_data
                       },
@@ -252,11 +253,10 @@ def _generate_prediction_in_chunks(images_data, pipeline, chunk_size):
     return predictions
 
 
-def _get_input_data(dev_mode=False, metadata=None, reduce=True, classes_to_visualize=None):
+def _get_input_data(dev_mode=False, metadata=None, reduce=True, classes_to_visualize=None, train_mode=False):
     annotations = pd.read_csv(PARAMS.annotations_filepath)
     annotations_human_labels = pd.read_csv(PARAMS.annotations_human_labels_filepath)
-
-    classes_to_visualize = classes_to_visualize or DESIRED_CLASS_SUBSET
+    classes_to_visualize = classes_to_visualize or DESIRED_CLASS_SUBSET or []
 
     if metadata is None:
         metadata = pd.read_csv(PARAMS.metadata_filepath)
@@ -277,6 +277,20 @@ def _get_input_data(dev_mode=False, metadata=None, reduce=True, classes_to_visua
     meta_train = metadata[metadata['is_train'] == 1]
     meta_valid = metadata[metadata['is_valid'] == 1]
 
+    if SOLUTION_CONFIG.execution.use_suppression and train_mode:
+        annotations['Suppress'] = 0
+        for class_code, count in annotations.LabelName.value_counts().iteritems():
+            class_name = CODES2NAMES[class_code]
+
+            if class_name in classes_to_visualize:
+                target_count = SOLUTION_CONFIG.execution.max_annotation_per_class
+                if count > target_count:
+                    LOGGER.info(
+                        "[Label suppression] Suppressing annotations from class={} with count={}".format(class_name,
+                                                                                                         count))
+                    group = annotations[annotations.LabelName == class_code]
+                    to_suppress_count = len(group) - target_count
+                    annotations.set_value(group.sample(to_suppress_count).index, 'Suppress', -2)
     if dev_mode:
         meta_train = meta_train.sample(100, random_state=SEED)
         meta_valid = meta_valid.sample(20, random_state=SEED)

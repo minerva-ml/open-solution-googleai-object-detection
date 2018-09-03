@@ -1,7 +1,6 @@
 import os
 
 from attrdict import AttrDict
-import imgaug.augmenters as iaa
 from .utils import NeptuneContext, parameter_eval, get_class_mappings
 
 neptune_ctx = NeptuneContext()
@@ -22,19 +21,6 @@ SCALE_RATIOS = parameter_eval(params.scale_ratios)
 
 CODES2NAMES, NAMES2CODES = get_class_mappings(mappings_file=params.class_mappings_filepath)
 
-augmenter = [
-    iaa.Fliplr(p=0.3),
-    iaa.Multiply((1.2, 1.5)),
-    iaa.AdditiveGaussianNoise(),
-    iaa.Affine(
-        rotate=(-5, 5),
-        scale=(0.8, 1)
-    )
-]
-
-
-
-
 
 GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'load_in_memory': params.load_in_memory,
@@ -43,7 +29,9 @@ GLOBAL_CONFIG = {'exp_root': params.experiment_dir,
                  'batch_size_train': params.batch_size_train,
                  'batch_size_inference': params.batch_size_inference,
                  'loader_mode': params.loader_mode,
-                 'stream_mode': params.stream_mode
+                 'stream_mode': params.stream_mode,
+                 'max_annotation_per_class': params.max_annotation_per_class,
+                 'use_suppression': params.use_suppression,
                  }
 
 SOLUTION_CONFIG = AttrDict({
@@ -62,7 +50,7 @@ SOLUTION_CONFIG = AttrDict({
                                   'sample_size': params.training_sample_size,
                                   'valid_sample_size': params.validation_sample_size,
                                   'even_class_sampling': params.even_class_sampling,
-                                  'augmenter': augmenter,
+                                  'use_suppression': params.use_suppression,
                                   'data_encoder': {'aspect_ratios': ASPECT_RATIOS,
                                                    'scale_ratios': SCALE_RATIOS,
                                                    'num_anchors': len(ASPECT_RATIOS) * len(SCALE_RATIOS)}

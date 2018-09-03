@@ -394,31 +394,30 @@ class DataDecoder(BaseDataHandler, BaseTransformer):
 
         input_size = torch.Tensor([w, h])
         anchor_boxes = self._get_anchor_boxes(input_size)
+        
+        try:
+            loc_xy = loc_preds[:, :2]
+            loc_wh = loc_preds[:, 2:]
 
-        # print(anchor_boxes.size(), loc_preds.size())
+            xy = loc_xy * anchor_boxes[:, 2:] + anchor_boxes[:, :2]
+            wh = loc_wh.exp() * anchor_boxes[:, 2:]
+            boxes = torch.cat([xy - wh / 2, xy + wh / 2], 1)  # [#anchors,4]
 
-        loc_xy = loc_preds[:, :2]
-        loc_wh = loc_preds[:, 2:]
+            w, h = input_size
+            boxes[:, [0, 2]] /= w
+            boxes[:, [1, 3]] /= h
+            boxes = torch.clamp(boxes, min=0.0, max=1.0)
 
-        xy = loc_xy * anchor_boxes[:, 2:] + anchor_boxes[:, :2]
-        wh = loc_wh.exp() * anchor_boxes[:, 2:]
-        boxes = torch.cat([xy - wh / 2, xy + wh / 2], 1)  # [#anchors,4]
+            score, labels = cls_preds.sigmoid().max(1)  # [#anchors,]
+            labels += 1
+            ids = score > self.cls_thrs
+            ids = ids.nonzero().squeeze()  # [#obj,]
+            keep = box_nms(boxes[ids], score[ids], labels[ids], threshold=self.nms_thrs)
 
-        w, h = input_size
-        boxes[:, [0, 2]] /= w
-        boxes[:, [1, 3]] /= h
-        boxes = torch.clamp(boxes, min=0.0, max=1.0)
-
-        score, labels = cls_preds.sigmoid().max(1)  # [#anchors,]
-        labels += 1
-        ids = score > self.cls_thrs
-        ids = ids.nonzero().squeeze()  # [#obj,]
-        if len(ids) == 0:
+            return boxes[ids][keep], labels[ids][keep], score[ids][keep]
+          
+        except:
             return torch.Tensor([]), torch.Tensor([]), torch.Tensor([])
-        keep = box_nms(boxes[ids], score[ids], threshold=self.nms_thrs)
-
-        return boxes[ids][keep], labels[ids][keep], score[ids][keep]
-
 
 def one_hot_embedding(labels, num_classes):
     """Embedding labels to one-hot form.
@@ -534,7 +533,7 @@ def box_iou(box1, box2, order='xyxy'):
     return iou
 
 
-def box_nms(bboxes, scores, threshold=0.5, mode='union'):
+def box_nms(bboxes, scores, labels, threshold=0.5, mode='union'):
     """Non maximum suppression.
     source: https://github.com/kuangliu/pytorch-retinanet
 
@@ -566,6 +565,8 @@ def box_nms(bboxes, scores, threshold=0.5, mode='union'):
         if order.numel() == 1:
             break
 
+        label = labels[i]
+
         xx1 = x1[order[1:]].clamp(min=x1[i])
         yy1 = y1[order[1:]].clamp(min=y1[i])
         xx2 = x2[order[1:]].clamp(max=x2[i])
@@ -582,7 +583,7 @@ def box_nms(bboxes, scores, threshold=0.5, mode='union'):
         else:
             raise TypeError('Unknown nms mode: %s.' % mode)
 
-        ids = (ovr <= threshold).nonzero().squeeze()
+        ids = ((ovr <= threshold) | (labels[order[1:]] != label)).nonzero().squeeze()
         if ids.numel() == 0:
             break
         order = order[ids + 1]
